@@ -57,7 +57,7 @@ def convert_data_to_image(data_bytes, width, height):
     
     # create and save the image
     img = Image.frombuffer('RGBA', (width, height), arr_rgba.tobytes(), 'raw', 'RGBA', 0, 1)
-    img.save("capture_example.png")
+    img.save("example_screen_capture_demo.png")
     img.show()
 
 # create a new tinySA object    
@@ -81,7 +81,11 @@ if connected_bool == True:
     
     # get the trace data
     data_bytes = nvna.capture() 
+    # Printed out for fun. 
+    # You do NOT need to print this to use it
     print(data_bytes)
+
+    # disconnect device since we're not using it
     nvna.disconnect()
 
     # processing after disconnect (just for this example)
