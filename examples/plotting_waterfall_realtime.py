@@ -3,7 +3,7 @@
 #   nanoVNA_python
 #   './examples/plotting_waterfall_realtime.py'
 #   A waterfall plot example for S11 data using matplotlib.
-#   The waterfall plot is shown after data is collected and exported
+#   The waterfall plot is shown and processed as the measurements are taken
 #
 #   Last update: June 29, 2025
 ##-------------------------------------------------------------------------------
