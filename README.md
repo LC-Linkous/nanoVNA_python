@@ -20,43 +20,58 @@ There also exists several officially recognized resources:
 This library, `nanoVNA_python`, is a non-GUI based library with access to low-level interfacing. It has been written as a companiion to the [tinySA_python library](https://github.com/LC-Linkous/tinySA_python). Even though there is a lot os similarities between teh devices, the libraries are key seperate in order to make it clear which examples, tips, and documetnation go to which device. 
 
 
+This library covers most documented commands for the NanoVNA device series. The documentation is sorted based on the serial command, with some provided usage examples. While some error checking exists in both the device and the library, it is not exhaustive. It is strongly suggested to read the official documentation before attempting to script with your device.
+
+
+Done:
+* library commands for common args
+* documentation for original command usage and library functions
+* examples for basic functionality 
+* some Debian-flavored Linux testing
+
+Working on it:
+* filling in unfinished args and any new NanoVNA features
+* An argparse option + some example scripts
+* Beginner notes, vocab, and some examples for common usage
+
+
 
 ## Table of Contents
-* [The tinySA Series of Devices](#the-tinysa-series-of-devices)
+* [The NanoVNA Series of Devices](#the-nanovna-series-of-devices)
 * [Requirements](#requirements)
 * [Library Usage](#library-usage)
 * [Error Handling](#error-handling)
 * [Example Implementations](#example-implementations)
     * [Finding the Serial Port](#finding-the-serial-port)
-        * [Autoconnection with the tinySA_python Library](#autoconnection-with-the-tinysa_python-library)
+        * [Autoconnection with the nanoVNA_python Library](#autoconnection-with-the-nanovna_python-library)
         * [Manually Finding a Port on Windows](#manually-finding-a-port-on-windows)
         * [Manually Finding a Port on Linux](#manually-finding-a-port-on-linux)
     * [Serial Message Return Format](#serial-message-return-format)
     * [Connecting and Disconnecting the Device](#connecting-and-disconnecting-the-device)
     * [Toggle Error Messages](#toggle-error-messages)
     * [Device and Library Help](#device-and-library-help)
-    * [Setting tinySA Parameters](#setting-tinysa-parameters)
+    * [Setting nanoVNA Parameters](#setting-nanovna-parameters)
     * [Getting Data from Active Screen](#getting-data-from-active-screen)
     * [Saving Screen Images](#saving-screen-images)
     * [Plotting Data with Matplotlib](#plotting-data-with-matplotlib)
         * [Example 1: Plot using On-Screen Trace Data and Frequencies](#example-1-plot-using-on-screen-trace-data-and-frequencies)
         * [Example 2: Plot using Scan Data and Frequencies](#example-2-plot-using-scan-data-and-frequencies)
-        * [Example 3: Plot using SCAN and SCANRAW Data and Calculated Frequencies](#example-3-plot-using-scan-and-scanraw-data-and-calculated-frequencies)
-        * [Example 4: Plot a Waterfall using SCAN and Calculated Frequencies](#example-4-plot-a-waterfall-using-scan-and-calculated-frequencies)
+        * [Example 3: Plot a Waterfall using SCAN and Calculated Frequencies](#example-3-plot-a-waterfall-using-scan-and-calculated-frequencies)
+        * [Example 4: Plot a Realtime Waterfall](#example-4-plot-a-realtime-waterfall)
     * [Saving SCAN Data to CSV](#saving-scan-data-to-csv)
-    * [Accessing the tinySA Directly](#accessing-the-tinysa-directly)
-* [List of tinySA Commands and their Library Commands](#list-of-tinysa-commands-and-their-library-commands)
+    * [Accessing the NanoVNA Directly](#accessing-the-nanovna-directly)
+* [List of nanoVNA Commands and their Library Commands](#list-of-nanoVNA-commands-and-their-library-commands)
 * [List of Commands Removed from Library](#list-of-commands-removed-from-library)
 * [Additional Library Functions for Advanced Use](#additional-library-functions-for-advanced-use)
 * [Notes for Beginners](#notes-for-beginners)
     * [Vocab Check](#vocab-check)
     * [Calibration Setup](#calibration-setup)
-    * [Some General tinySA Notes](#some-general-tinysa-notes)
+    * [Some General NanoVNA Notes](#some-general-nanovna-notes)
 * [FAQs](#faqs)
 * [References](#references)
 * [Licensing](#licensing)  
 
-## The tinySA Series of Devices
+## The NanoVNA Series of Devices
 
 The [NanoVNA line of devices](https://nanovna.com/?page_id=21) are a series of portable and pretty user-friendly vector network analyzer devices. There are several devices with different frequency ranges, so refer to [official documentation](https://nanovna.com/?page_id=21) to select one for your needs. There are also some very convincing knock-off devices, so ensure that you are purchasing an actual device from a [reuptable vendor](https://nanovna.com/?page_id=121). 
 
@@ -116,13 +131,1040 @@ Some error handling has been implemented for the individual functions in this li
 
 Detailed error messages can be returned by toggling 'verbose' on.
 
-Some error checking includes:
 
- * UNDER DEVELOPMENT
+## Example Implementations
+
+This library was developed on Windows and has been lightly tested on Linux. The main difference (so far) has been in the permissions for first access of the serial port, but there may be smaller bugs in format that have not been detected yet. 
+
+### Finding the Serial Port
+
+To start, a serial connection between the tinySA and user PC device must be created. There are several ways to list available serial ports. The library supports some rudimentary autodetection, but if that does not work instructions in this section also support manual detection. 
+
+
+#### Autoconnection with the nanoVNA_python Library
+
+
+The nanoVNA_python currently has some autodetection capabilities, but these are new and not very complex. If multiple devices have the same VID, then the first one found is used. If you are connecting multiple devices to a user PC, then it is suggested to connect them manually (for now).
+
+
+```python
+# import nanoVNA library
+# (NOTE: check library path relative to script path)
+from src.nanoVNA_python import nanoVNA 
+
+# create a new nanoVNA object    
+nvna = nanoVNA()
+
+# set the return message preferences 
+nvna.set_verbose(True) #detailed messages
+nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+
+
+# attempt to autoconnect
+found_bool, connected_bool = nvna.autoconnect()
+
+# if port found and connected, then complete task(s) and disconnect
+if connected_bool == True: 
+    print("device connected")
+
+    msg = nvna.get_info() 
+    print(msg)
+    
+
+    nvna.disconnect()
+else:
+    print("ERROR: could not connect to port")
+
+```
 
 
 
-## List of tinySA Commands and their Library Commands
+#### Manually Finding a Port on Windows
+1)  Open _Device Manager_, scroll down to _Ports (COM & LPT)_, and expand the menu. There should be a _COM#_ port listing "USB Serial Device(COM #)". If your tinySA Ultra is set up to work with Serial, this will be it.
+
+2) This uses the pyserial library requirement already installed for this library. It probably also works on Linux systems, but has not been tested yet.
+
+```python
+
+import serial.tools.list_ports
+
+ports = serial.tools.list_ports.comports()
+
+for port, desc, hwid in ports:
+    print(f"Port: {port}, Description: {desc}, Hardware ID: {hwid}")
+
+```
+
+Example output for this method (on Windows) is as follows:
+
+```python
+
+Port: COM4, Description: Standard Serial over Bluetooth link (COM4), Hardware ID: BTHENUM\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0000\7&D0D1EE&0&000000000000_00000000
+Port: COM3, Description: Standard Serial over Bluetooth link (COM3), Hardware ID: BTHENUM\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0002\7&D0D1EE&0&B8B3DC31CBA8_C00000000
+Port: COM22, Description: USB Serial Device (COM10), Hardware ID: USB VID:PID=0483:5740 SER=400 LOCATION=1-3
+
+```
+
+"COM22" is the port location of the NanoVNA that is used in the examples in this README.
+
+
+#### Manually Finding a Port on Linux
+
+```python
+
+import serial.tools.list_ports
+
+ports = serial.tools.list_ports.comports()
+
+for port, desc, hwid in ports:
+    print(f"Port: {port}, Description: {desc}, Hardware ID: {hwid}")
+
+```
+
+```python
+
+TO BE ADDED
+
+```
+
+This method identified the `/dev/ttyACM0`. Now, when attempting to use the autoconnect feature, the following error was initially returned:
+
+```python
+[Errno 13] could not open port /dev/ttyACM0: [Errno 13] Permission denied: '/dev/ttyACM0'
+
+```
+
+This was due to not having permission to access the port. In this case, this error was solved by opening a terminal and executing `sudo chmod a+rw /dev/ttyACM0`. Should this issue be persistent, other solutions related to user groups and access will need to be investigated.  
+
+
+
+
+### Serial Message Return Format
+
+This library returns strings as cleaned byte arrays. The command and first `\r\n` pair are removed from the front, and the `ch>` is removed from the end of the tinySA serial return.
+
+The original message format:
+
+# TODO: UPDATE EXAMPLE
+
+```python
+bytearray(b'infp\r\ndeviceid 0\r\nch>')
+```
+
+Cleaned version:
+
+```python
+bytearray(b'deviceid 0\r')
+```
+
+### Connecting and Disconnecting the Device
+ This example shows the process for initializing, opening the serial port, getting device info, and disconnecting.
+
+```python
+# import nanoVNA library
+# (NOTE: check library path relative to script path)
+from src.nanoVNA_python import nanoVNA 
+
+# create a new nanoVNA object    
+nvna = nanoVNA()
+
+# set the return message preferences 
+nvna.set_verbose(True) #detailed messages
+nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+
+
+# attempt to autoconnect
+found_bool, connected_bool = nvna.autoconnect()
+
+# if port found and connected, then complete task(s) and disconnect
+if connected_bool == True: 
+    print("device connected")
+
+    msg = nvna.get_info() 
+    print(msg)
+    
+
+    nvna.disconnect()
+else:
+    print("ERROR: could not connect to port")
+
+```
+
+Example output for this method is as follows:
+
+```python
+
+bytearray(b'Model:        NanoVNA-F_V2\r\nFrequency:    50k ~ 3GHz\r\nBuild time:   Mar  2 2021 - 09:40:50 CST\r')
+
+```
+
+
+### Toggle Error Messages
+
+Currently, the following can be used to turn on or off returned error messages.
+
+1) the 'verbose' option. When enabled, detailed messages are printed out. 
+
+```python
+# detailed messages are ON
+nvna.set_verbose(True) 
+
+# detailed messages are OFF
+nvna.set_verbose(False) 
+```
+
+1) the 'errorByte' option. When enabled, if there is an error with the command or configuration, `b'ERROR'` is returned instead of the default `b''`. 
+
+```python
+# when an error occurs, b'ERROR' is returned
+nvna.set_error_byte_return(True) 
+
+# when an error occurs, the default b'' might be returned
+nvna.set_error_byte_return(False) 
+```
+
+### Device and Library Help
+
+The `help` return can be accessed via the `help()` function call. This will interface with the device directly and return functions based on the newest firmware, not information from the `nanoVNA_python.py` library.
+
+```python
+
+nvna.help()
+
+```
+
+The `help` command returns bytearray in the format `bytearray(b'commands:......')`
+
+### Setting tinySA Parameters
+TODO when error checking is complete to show multiple examples
+
+```python
+
+```
+### Getting Data from Active Screen
+
+See other sections for the following examples:
+* [Saving Screen Images](#saving-screen-images)
+* [Plotting Data with Matplotlib](#plotting-data-with-matplotlib)
+
+This example shows several types of common data requests:
+
+```python
+TODO - updating the library with commands first
+
+
+```
+
+### Analysis of the Returned Data from the NanoVNA
+
+
+This example shows several types of common data requests:
+
+```python
+TODO - updating the library with commands first
+
+
+```
+
+
+### Saving Screen Images
+ 
+ The `capture()` function can be used to capture the screen and output it to an image file. Note that the screen size varies by device. The library itself does not have a function for saving to an image (requires an additional library), but examples and the CLI wrapper have this functionality.
+
+ This example truncates the last hex value, so a single padding `x00` value has been added. This will eventually be investigated, but it's not hurting the output right now.
+
+```python
+
+# import NanoVNA library
+# (NOTE: check library path relative to script path)
+from src.nanoVNA_python import nanoVNA 
+
+# imports FOR THE EXAMPLE
+import numpy as np
+from PIL import Image
+import struct
+
+def convert_data_to_image(data_bytes, width, height):
+    # calculate the expected data size
+    expected_size = width * height * 2  # 16 bits per pixel (BGR565), 2 bytes per pixel
+    
+    # error checking
+    if len(data_bytes) < expected_size:
+        print(f"Data size is too small. Expected {expected_size} bytes, got {len(data_bytes)} bytes.")
+        if len(data_bytes) == expected_size - 1:
+            print("Data size is 1 byte smaller than expected. Adding 1 byte of padding.")
+            data_bytes.append(0)
+        else:
+            return
+    elif len(data_bytes) > expected_size:
+        data_bytes = data_bytes[:expected_size]
+        print("Data is larger than the expected size. truncating. check data.")
+    
+    num_pixels = width * height
+    
+    # Unpack as little-endian 16-bit values
+    x = struct.unpack(f"<{num_pixels}H", data_bytes)
+    arr = np.array(x, dtype=np.uint32)
+    
+
+    # Convert RGB565 to RGBA
+    # The NanoVNA uses BGR565 format.
+    # This is a difference from the tinySA_python library which used RGB565. This is pulled out
+    # into variables to make it clearer where/what the switch is.
+    blue = ((arr & 0xF800) >> 11) * 255 // 31    # Blue in high bits (15-11)
+    green = ((arr & 0x07E0) >> 5) * 255 // 63    # Green in middle bits (10-5)
+    red = (arr & 0x001F) * 255 // 31             # Red in low bits (4-0)
+    
+    # Combine into RGBA format (Alpha = 255 for opaque)
+    arr_rgba = 0xFF000000 + (red << 16) + (green << 8) + blue
+    
+    # reshape array to match the image dimensions
+    arr_rgba = arr_rgba.reshape((height, width))
+    
+    # create and save the image
+    img = Image.frombuffer('RGBA', (width, height), arr_rgba.tobytes(), 'raw', 'RGBA', 0, 1)
+    img.save("example_screen_capture_demo.png")
+    img.show()
+
+# create a new tinySA object    
+nvna = nanoVNA()
+
+# set the return message preferences 
+nvna.set_verbose(True) #detailed messages
+nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+
+
+# attempt to autoconnect
+found_bool, connected_bool = nvna.autoconnect()
+
+# if port found and connected, then complete task(s) and disconnect
+if connected_bool == True: 
+    print("device connected")
+
+    
+    msg = nvna.get_info() 
+    print(msg)
+    
+    # get the trace data
+    data_bytes = nvna.capture() 
+    # Printed out for fun. 
+    # You do NOT need to print this to use it
+    print(data_bytes)
+
+    # disconnect device since we're not using it
+    nvna.disconnect()
+
+    # processing after disconnect (just for this example)
+    # test with 800x480 resolution for NanoVNA-F V2
+    convert_data_to_image(data_bytes, 800, 480) 
+
+else:
+    print("ERROR: could not connect to port")
+
+
+
+
+```
+
+<p align="center">
+        <img src="media/example_screen_capture.png" alt="Capture of On-screen Trace Data" height="350">
+</p>
+   <p align="center">Capture On-Screen Trace Data from 1 GHz to 3 GHzz</p>
+
+### Plotting Data with Matplotlib
+
+#### **Example 1: Plot Trace Data**
+This example plots the last/current sweep of data from the NanoVNA device. 
+`scan()` gets the trace data. `byteArrayToNumArray(byteArr)` takes in the returned trace data and frequency 
+information and converts them to arrays that are then plotted using `matplotlib`
+
+
+This example has 4 subplots because there is a lot of information returned with each sweep of the NanoVNA. The top, left plot shows the real and imaginary parts of the signal. This is the data as it is returned directly from the NanoVNA device. The top, right plot shows the calculated magnitude data. The bottom plots are the calculated phase response and Smith Chart, on the left and right, respectively. 
+
+
+```python
+# import NanoVNA library
+# (NOTE: check library path relative to script path)
+from src.nanoVNA_python import nanoVNA
+# imports FOR THE EXAMPLE
+import numpy as np
+import matplotlib.pyplot as plt
+
+def convert_s11_data_to_arrays(start, stop, pts, data):
+    # Convert the raw device S11 data to frequency and S11 arrays.
+    # given the format of the data, this is assuming the data 
+    # contains PAIRS of values (real/imag or mag/phase).
+
+    # Create frequency array
+    freq_arr = np.linspace(start, stop, pts)
+    
+    # Parse data into pairs of values
+    lines = data.decode('utf-8').split('\n')
+    real_parts = []
+    imag_parts = []
+    
+    for line in lines:
+        if line.strip():  # Skip empty lines
+            values = line.split()
+            if len(values) >= 2:
+                try:
+                    real_val = float(values[0])
+                    imag_val = float(values[1])
+                    
+                    # Skip zero pairs (padding data)
+                    if real_val != 0.0 or imag_val != 0.0:
+                        real_parts.append(real_val)
+                        imag_parts.append(imag_val)
+                except ValueError:
+                    continue  # Skip malformed lines
+    
+    # Convert to numpy arrays
+    real_arr = np.array(real_parts)
+    imag_arr = np.array(imag_parts)
+    
+    # Calculate derived values
+    # If data is real/imaginary components:
+    magnitude_db = 20 * np.log10(np.sqrt(real_arr**2 + imag_arr**2))
+    phase_deg = np.degrees(np.arctan2(imag_arr, real_arr))
+    
+    # Adjust frequency array to match actual data length
+    actual_pts = len(real_arr)
+    if actual_pts != pts:
+        freq_arr = np.linspace(start, stop, actual_pts)
+    
+    return freq_arr, real_arr, imag_arr, magnitude_db, phase_deg
+
+
+
+# create a new tinySA object    
+nvna = nanoVNA()
+# set the return message preferences
+nvna.set_verbose(True) # detailed messages
+nvna.set_error_byte_return(True) # get explicit b'ERROR' if error thrown
+
+# attempt to autoconnect
+found_bool, connected_bool = nvna.autoconnect()
+
+# if port closed, then return error message
+if connected_bool == False:
+    print("ERROR: could not connect to port")
+else: # if port found and connected, then complete task(s) and disconnect
+    # set scan values
+    start = int(1e9)  # 1 GHz
+    stop = int(3e9)   # 3 GHz
+    pts = 200         # sample points. MAX 201
+    outmask = 2       # get measured data (y axis)
+    
+    # scan
+    data_bytes = nvna.scan(start, stop, pts, outmask)
+    print("Raw data received:")
+    print(data_bytes)
+    
+    nvna.resume() # resume so screen isn't still frozen
+    nvna.disconnect()
+    
+    # processing after disconnect
+    # This is typical for the examples, but does not need to be done
+    # if you are sitll using the device or collecting data.
+
+
+    # convert data to arrays
+    freq_arr, real_arr, imag_arr, magnitude_db, phase_deg = convert_s11_data_to_arrays(start, stop, pts, data_bytes)
+    
+    # Create subplots for comprehensive S11 visualization
+    # this is different from the tinySA plots, which only showed the frequency data overlapped
+    # because we are collecting more data with each sweep. 
+    # Data has been sorted into 4 plots
+     # The Antenna used in data collection is a 2.4 GHz monopole
+
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
+    
+    # Plot 1: Real and Imaginary parts
+    ax1.plot(freq_arr/1e9, real_arr, 'b-', label='Real', linewidth=1.5)
+    ax1.plot(freq_arr/1e9, imag_arr, 'r-', label='Imaginary', linewidth=1.5)
+    ax1.set_xlabel("Frequency (GHz)")
+    ax1.set_ylabel("S11 Components")
+    ax1.set_title("S11 Real and Imaginary Components")
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+    
+    # Plot 2: Magnitude in dB
+    ax2.plot(freq_arr/1e9, magnitude_db, 'g-', linewidth=1.5)
+    ax2.set_xlabel("Frequency (GHz)")
+    ax2.set_ylabel("S11 Magnitude (dB)")
+    ax2.set_title("S1 Magnitude Response")
+    ax2.grid(True, alpha=0.3)
+    
+    # Plot 3: Phase
+    ax3.plot(freq_arr/1e9, phase_deg, 'm-', linewidth=1.5)
+    ax3.set_xlabel("Frequency (GHz)")
+    ax3.set_ylabel("S11 Phase (degrees)")
+    ax3.set_title("S11 Phase Response")
+    ax3.grid(True, alpha=0.3)
+    
+    # Plot 4: Smith Chart representation (simplified)
+    ax4.scatter(real_arr, imag_arr, c=freq_arr/1e9, cmap='viridis', s=20)
+    ax4.set_xlabel("Real Part")
+    ax4.set_ylabel("Imaginary Part")
+    ax4.set_title("S11 Complex Plane (Simplified Smith Chart)")
+    ax4.grid(True, alpha=0.3)
+    ax4.axis('equal')
+    
+    # Add colorbar for frequency reference
+    cbar = plt.colorbar(ax4.collections[0], ax=ax4)
+    cbar.set_label('Frequency (GHz)')
+    
+    plt.tight_layout()
+    plt.show()
+    
+    # Print summary statistics
+    print(f"\nData Summary:")
+    print(f"Number of valid data points: {len(real_arr)}")
+    print(f"Frequency range: {freq_arr[0]/1e9:.3f} - {freq_arr[-1]/1e9:.3f} GHz")
+    print(f"S_{11} Magnitude range: {np.min(magnitude_db):.2f} to {np.max(magnitude_db):.2f} dB")
+    print(f"S_{11} Phase range: {np.min(phase_deg):.1f} to {np.max(phase_deg):.1f} degrees")
+
+```
+
+<p align="center">
+        <img src="media/example_scan_plot.png" alt="Plot of On-screen Trace Data" height="350">
+</p>
+   <p align="center">Plotted On-Screen Trace Data of a Frequency Sweep from 1 GHz to 3 GHz</p>
+
+
+#### **Example 2: Plot a Static Waterfall using SCAN and Calculated Frequencies**
+
+This example uses the `scan()` read to get the data over a specified number of reads and then display it in the four plots described in Example 1, above. Data is exproted to a specified .csv for logging. The scan can be interrupted at any time interupting the program in the terminal (typicaly ctrl + C).
+
+```python
+
+# import nanoVNA library
+# (NOTE: check library path relative to script path)
+from src.nanoVNA_python import nanoVNA
+
+# imports FOR THE EXAMPLE
+import csv
+import numpy as np
+import matplotlib.pyplot as plt
+import time
+from datetime import datetime
+
+def convert_s11_data_to_arrays(start, stop, pts, data):
+    # Convert the raw device S11 data to frequency and S11 arrays.
+    # given the format of the data, this is assuming the data 
+    # contains PAIRS of values (real/imag or mag/phase).
+    # Create frequency array
+    freq_arr = np.linspace(start, stop, pts)
+    
+    # Parse data into pairs of values
+    lines = data.decode('utf-8').split('\n')
+    real_parts = []
+    imag_parts = []
+    
+    for line in lines:
+        if line.strip():  # Skip empty lines
+            values = line.split()
+            if len(values) >= 2:
+                try:
+                    real_val = float(values[0])
+                    imag_val = float(values[1])
+                    
+                    # Skip zero pairs (padding data)
+                    if real_val != 0.0 or imag_val != 0.0:
+                        real_parts.append(real_val)
+                        imag_parts.append(imag_val)
+                except ValueError:
+                    continue  # Skip malformed lines
+    
+    # Convert to numpy arrays
+    real_arr = np.array(real_parts)
+    imag_arr = np.array(imag_parts)
+    
+    # Calculate derived values
+    magnitude_db = 20 * np.log10(np.sqrt(real_arr**2 + imag_arr**2))
+    phase_deg = np.degrees(np.arctan2(imag_arr, real_arr))
+    
+    # Adjust frequency array to match actual data length
+    actual_pts = len(real_arr)
+    if actual_pts != pts:
+        freq_arr = np.linspace(start, stop, actual_pts)
+    
+    return freq_arr, real_arr, imag_arr, magnitude_db, phase_deg
+
+def collect_s11_waterfall_data(nvna, start, stop, pts, outmask, num_scans, scan_interval):
+    # collects the scans for the waterfall plot
+
+    waterfall_real = []      # 2D array for real components
+    waterfall_imag = []      # 2D array for imaginary components  
+    waterfall_magnitude = [] # 2D array for magnitude in dB
+    waterfall_phase = []     # 2D array for phase in degrees
+    timestamps = []
+    freq_arr = None
+    
+    print(f"Collecting {num_scans} S11 scans with {scan_interval}s intervals...")
+    
+    for i in range(num_scans):
+        print(f"Scan {i+1}/{num_scans}")
+        
+        # Perform scan
+        data_bytes = nvna.scan(start, stop, pts, outmask)
+        
+        # Convert to arrays
+        if freq_arr is None:
+            freq_arr, real_arr, imag_arr, mag_arr, phase_arr = convert_s11_data_to_arrays(start, stop, pts, data_bytes)
+        else:
+            _, real_arr, imag_arr, mag_arr, phase_arr = convert_s11_data_to_arrays(start, stop, pts, data_bytes)
+        
+        # Store data and timestamp
+        waterfall_real.append(real_arr)
+        waterfall_imag.append(imag_arr)
+        waterfall_magnitude.append(mag_arr)
+        waterfall_phase.append(phase_arr)
+        timestamps.append(datetime.now())
+        
+        # Wait before next scan (except for last scan)
+        if i < num_scans - 1:
+            time.sleep(scan_interval)
+    
+    return (freq_arr, 
+            np.array(waterfall_real), 
+            np.array(waterfall_imag),
+            np.array(waterfall_magnitude), 
+            np.array(waterfall_phase), 
+            timestamps)
+
+def plot_s11_waterfall(freq_arr, waterfall_real, waterfall_imag, waterfall_magnitude, waterfall_phase, timestamps, start, stop):
+    # Create figure with subplots
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
+    
+    # Create time array for y-axis
+    time_arr = np.arange(len(timestamps))
+    freq_mesh, time_mesh = np.meshgrid(freq_arr, time_arr)
+    
+    # Plot 1: S11 Magnitude waterfall
+    im1 = ax1.pcolormesh(freq_mesh/1e9, time_mesh, waterfall_magnitude, 
+                        shading='nearest', cmap='viridis')
+    ax1.set_xlabel('Frequency (GHz)')
+    ax1.set_ylabel('Scan Number')
+    ax1.set_title(f'S11 Magnitude Waterfall: {start/1e9:.1f} - {stop/1e9:.1f} GHz')
+    cbar1 = plt.colorbar(im1, ax=ax1)
+    cbar1.set_label('S11 Magnitude (dB)')
+    
+    # Plot 2: S11 Phase waterfall
+    im2 = ax2.pcolormesh(freq_mesh/1e9, time_mesh, waterfall_phase, 
+                        shading='nearest', cmap='plasma')
+    ax2.set_xlabel('Frequency (GHz)')
+    ax2.set_ylabel('Scan Number')
+    ax2.set_title('S11 Phase Waterfall')
+    cbar2 = plt.colorbar(im2, ax=ax2)
+    cbar2.set_label('S11 Phase (degrees)')
+    
+    # Plot 3: Latest S11 Magnitude scan
+    ax3.plot(freq_arr/1e9, waterfall_magnitude[-1], 'b-', linewidth=1.5)
+    ax3.set_xlabel('Frequency (GHz)')
+    ax3.set_ylabel('S11 Magnitude (dB)')
+    ax3.set_title('Latest S11 Magnitude Scan')
+    ax3.grid(True, alpha=0.3)
+    
+    # Plot 4: Latest S11 Phase scan
+    ax4.plot(freq_arr/1e9, waterfall_phase[-1], 'r-', linewidth=1.5)
+    ax4.set_xlabel('Frequency (GHz)')
+    ax4.set_ylabel('S11 Phase (degrees)')
+    ax4.set_title('Latest S11 Phase Scan')
+    ax4.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    return fig
+
+# create a new nanoVNA object    
+nvna = nanoVNA()
+# set the return message preferences
+nvna.set_verbose(True) # detailed messages
+nvna.set_error_byte_return(True) # get explicit b'ERROR' if error thrown
+
+# attempt to autoconnect
+found_bool, connected_bool = nvna.autoconnect()
+
+# if port closed, then return error message
+if connected_bool == False:
+    print("ERROR: could not connect to port")
+else: # if port found and connected, then complete task(s) and disconnect
+    try:
+        # set scan values
+        start = int(1e9)  # 1 GHz
+        stop = int(3e9)   # 3 GHz
+        pts = 200         # sample points
+        outmask = 2       # get measured data (y axis)
+        
+        # waterfall parameters
+        num_scans = 20        # number of scans to collect
+        scan_interval = 1.0   # seconds between scans
+        
+        # collect waterfall data
+        (freq_arr, waterfall_real, waterfall_imag, 
+         waterfall_magnitude, waterfall_phase, timestamps) = collect_s11_waterfall_data(
+            nvna, start, stop, pts, outmask, num_scans, scan_interval)
+        
+        print("S11 data collection complete!")
+        
+        # resume and disconnect
+        nvna.resume() # resume so screen isn't still frozen
+        nvna.disconnect()
+        
+        # processing after disconnect
+        print("Creating S11 waterfall plots...")
+        
+        # create waterfall plot
+        fig = plot_s11_waterfall(freq_arr, waterfall_real, waterfall_imag, 
+                                waterfall_magnitude, waterfall_phase, timestamps, start, stop)
+        
+        # Save data to CSV
+        filename = "s11_waterfall_sample.csv"
+        
+        # Create CSV with comprehensive S11 data
+        with open(filename, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            
+            # Write header row
+            header = ['Scan_Number', 'Timestamp']
+            for freq in freq_arr:
+                header.extend([f'{freq:.0f}_Real', f'{freq:.0f}_Imag', 
+                              f'{freq:.0f}_Mag_dB', f'{freq:.0f}_Phase_deg'])
+            writer.writerow(header)
+            
+            # Write data rows
+            for i in range(len(timestamps)):
+                row = [i+1, timestamps[i].strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]]
+                for j in range(len(freq_arr)):
+                    row.extend([
+                        f'{waterfall_real[i][j]:.6f}',
+                        f'{waterfall_imag[i][j]:.6f}',
+                        f'{waterfall_magnitude[i][j]:.3f}',
+                        f'{waterfall_phase[i][j]:.2f}'
+                    ])
+                writer.writerow(row)
+        
+        print(f"S11 waterfall data saved to {filename}")
+        print(f"CSV contains {len(timestamps)} scans with {len(freq_arr)} frequency points each")
+        print(f"Each frequency point includes: Real, Imaginary, Magnitude (dB), Phase (deg)")
+        
+        # Statistics
+        print(f"\nScan Statistics:")
+        print(f"Frequency range: {freq_arr[0]/1e9:.3f} - {freq_arr[-1]/1e9:.3f} GHz")
+        print(f"S11 Magnitude range: {np.min(waterfall_magnitude):.2f} to {np.max(waterfall_magnitude):.2f} dB")
+        print(f"S11 Phase range: {np.min(waterfall_phase):.1f} to {np.max(waterfall_phase):.1f} degrees")
+        
+        # show plot
+        plt.show()
+
+    except KeyboardInterrupt:
+        print("\nScan interrupted by user")
+        nvna.resume()
+        nvna.disconnect()
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        nvna.resume()
+        nvna.disconnect()
+
+```
+<p align="center">
+        <img src="media/example_static_waterfall.png" alt="Waterfall Plot for SCAN Data Over 20 Readings" height="350">
+</p>
+   <p align="center">Waterfall Plot for SCAN Data Over 20 Readings</p>
+
+
+#### **Example 3: Plot a Realtime Waterfall using SCAN and Calculated Frequencies**
+
+This example uses the `scan()` read to get the data direcly from the NanoVNA device. After each read, the four plots on the `matplotlib` figure are updated. The scan can be interrupted at any time by closing the figure window.
+
+```python
+# import nanoVNA library
+from src.nanoVNA_python import nanoVNA
+
+# imports FOR THE EXAMPLE
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from collections import deque
+import time
+from datetime import datetime
+import threading
+import queue
+
+def convert_s11_data_to_arrays(start, stop, pts, data):
+    # Convert the raw device S11 data to frequency and S11 arrays.
+    # given the format of the data, this is assuming the data 
+    # contains PAIRS of values (real/imag or mag/phase).
+
+    # Create frequency array
+    freq_arr = np.linspace(start, stop, pts)
+    
+   
+    # Parse data into pairs of values
+    lines = data.decode('utf-8').split('\n')
+    real_parts = []
+    imag_parts = []
+    
+    for line in lines:
+        if line.strip():
+            values = line.split()
+            if len(values) >= 2:
+                try:
+                    real_val = float(values[0])
+                    imag_val = float(values[1])
+                    
+                    # Skip zero pairs (padding data)
+                    if real_val != 0.0 or imag_val != 0.0:
+                        real_parts.append(real_val)
+                        imag_parts.append(imag_val)
+                except ValueError:
+                    continue
+    
+    # Convert to numpy arrays
+    real_arr = np.array(real_parts)
+    imag_arr = np.array(imag_parts)
+    
+    # Calculate derived values
+    magnitude_db = 20 * np.log10(np.sqrt(real_arr**2 + imag_arr**2))
+    phase_deg = np.degrees(np.arctan2(imag_arr, real_arr))
+    
+    # Adjust frequency array to match actual data length
+    actual_pts = len(real_arr)
+    if actual_pts != pts:
+        freq_arr = np.linspace(start, stop, actual_pts)
+    
+    return freq_arr, real_arr, imag_arr, magnitude_db, phase_deg
+
+class LiveS11Plotter:
+    def __init__(self, nvna, start, stop, pts, outmask, max_history=50):
+        self.nvna = nvna
+        self.start = start
+        self.stop = stop
+        self.pts = pts
+        self.outmask = outmask
+        self.max_history = max_history
+        
+        # Data storage
+        self.freq_arr = None
+        self.magnitude_history = deque(maxlen=max_history)
+        self.phase_history = deque(maxlen=max_history)
+        self.real_history = deque(maxlen=max_history)
+        self.imag_history = deque(maxlen=max_history)
+        self.timestamps = deque(maxlen=max_history)
+        
+        # Threading for data acquisition
+        self.data_queue = queue.Queue()
+        self.running = False
+        self.data_thread = None
+        
+        # Current data for single-trace plots
+        self.current_magnitude = None
+        self.current_phase = None
+        self.current_real = None
+        self.current_imag = None
+        
+    def data_acquisition_thread(self):
+        #background thread for continuous data acquisition
+        while self.running:
+            try:
+                # Get scan data
+                data_bytes = self.nvna.scan(self.start, self.stop, self.pts, self.outmask)
+                
+                # Convert to arrays
+                freq_arr, real_arr, imag_arr, mag_arr, phase_arr = convert_s11_data_to_arrays(
+                    self.start, self.stop, self.pts, data_bytes)
+                
+                # Put data in queue for main thread
+                self.data_queue.put({
+                    'freq': freq_arr,
+                    'real': real_arr,
+                    'imag': imag_arr,
+                    'magnitude': mag_arr,
+                    'phase': phase_arr,
+                    'timestamp': datetime.now()
+                })
+                
+                time.sleep(0.15)  # Small delay to prevent overwhelming the device
+                        # this might need to be tuned based on the device and how many points are taken
+                
+            except Exception as e:
+                print(f"Data acquisition error: {e}")
+                break
+    
+    def start_acquisition(self):
+        # start the thread
+        self.running = True
+        self.data_thread = threading.Thread(target=self.data_acquisition_thread)
+        self.data_thread.daemon = True
+        self.data_thread.start()
+    
+    def stop_acquisition(self):
+       # stop the thread
+        self.running = False
+        if self.data_thread:
+            self.data_thread.join()
+    
+    def update_plots(self, frame):
+        
+        # Get all available data from queue
+        while not self.data_queue.empty():
+            try:
+                data = self.data_queue.get_nowait()
+                
+                # Store frequency array (first time only)
+                if self.freq_arr is None:
+                    self.freq_arr = data['freq']
+                
+                # Update current data
+                self.current_magnitude = data['magnitude']
+                self.current_phase = data['phase']
+                self.current_real = data['real']
+                self.current_imag = data['imag']
+                
+                # Add to history
+                self.magnitude_history.append(data['magnitude'])
+                self.phase_history.append(data['phase'])
+                self.real_history.append(data['real'])
+                self.imag_history.append(data['imag'])
+                self.timestamps.append(data['timestamp'])
+                
+            except queue.Empty:
+                break
+        
+        # Clear all plots
+        for ax in [ax1, ax2, ax3, ax4]:
+            ax.clear()
+        
+        if self.freq_arr is not None and self.current_magnitude is not None:
+            # Plot 1: Current S11 Magnitude
+            ax1.plot(self.freq_arr/1e9, self.current_magnitude, 'b-', linewidth=1.5)
+            ax1.set_xlabel('Frequency (GHz)')
+            ax1.set_ylabel('S11 Magnitude (dB)')
+            ax1.set_title('Live S11 Magnitude')
+            ax1.grid(True, alpha=0.3)
+            
+            # Plot 2: Current S11 Phase
+            ax2.plot(self.freq_arr/1e9, self.current_phase, 'r-', linewidth=1.5)
+            ax2.set_xlabel('Frequency (GHz)')
+            ax2.set_ylabel('S11 Phase (degrees)')
+            ax2.set_title('Live S11 Phase')
+            ax2.grid(True, alpha=0.3)
+            
+            # Plot 3: S11 Magnitude Waterfall (recent history)
+            if len(self.magnitude_history) > 1:
+                waterfall_mag = np.array(list(self.magnitude_history))
+                time_arr = np.arange(len(waterfall_mag))
+                freq_mesh, time_mesh = np.meshgrid(self.freq_arr, time_arr)
+                
+                im = ax3.pcolormesh(freq_mesh/1e9, time_mesh, waterfall_mag, 
+                                   shading='nearest', cmap='viridis')
+                ax3.set_xlabel('Frequency (GHz)')
+                ax3.set_ylabel('Time (scans ago)')
+                ax3.set_title('S11 Magnitude History')
+            
+            # Plot 4: Complex plane (Smith chart style)
+            ax4.scatter(self.current_real, self.current_imag, 
+                       c=self.freq_arr/1e9, cmap='plasma', s=10, alpha=0.7)
+            ax4.set_xlabel('Real Part')
+            ax4.set_ylabel('Imaginary Part')
+            ax4.set_title('S11 Complex Plane')
+            ax4.grid(True, alpha=0.3)
+            ax4.axis('equal')
+        
+        # Add timestamp
+        if self.timestamps:
+            fig.suptitle(f'Live S11 Measurement - {self.timestamps[-1].strftime("%H:%M:%S")}', 
+                        fontsize=14)
+
+# Main execution
+if __name__ == "__main__":
+    # create a new nanoVNA object    
+    nvna = nanoVNA()
+    # set the return message preferences
+    nvna.set_verbose(True)
+    nvna.set_error_byte_return(True)
+
+    # attempt to autoconnect
+    found_bool, connected_bool = nvna.autoconnect()
+
+    if not connected_bool:
+        print("ERROR: could not connect to port")
+    else:
+        try:
+            print("Starting live S11 measurement...")
+            print("Close the plot window to stop measurement")
+            
+            # Scan parameters
+            start = int(1e9)  # 1 GHz
+            stop = int(3e9)   # 3 GHz
+            pts = 150         # Reduced points for faster updates
+            outmask = 2       # get measured data
+            
+            # Create plotter
+            plotter = LiveS11Plotter(nvna, start, stop, pts, outmask, max_history=30)
+            
+            # Set up the plot
+            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))
+            plt.subplots_adjust(hspace=0.3, wspace=0.3)
+            
+            # Start data acquisition
+            plotter.start_acquisition()
+            
+            # Create animation
+            ani = animation.FuncAnimation(fig, plotter.update_plots, 
+                                        interval=200, blit=False)
+            
+            # Show plot (this blocks until window is closed)
+            plt.show()
+            
+            # Cleanup
+            plotter.stop_acquisition()
+            nvna.resume()
+            nvna.disconnect()
+            
+            print("Live measurement stopped")
+            
+        except KeyboardInterrupt:
+            print("\nMeasurement interrupted by user")
+            nvna.resume()
+            nvna.disconnect()
+        except Exception as e:
+            print(f"Error occurred: {e}")
+            nvna.resume()
+            nvna.disconnect()
+
+```
+
+<p align="center">
+        <img src="media/example_realtime_waterfall.png" alt="Waterfall Plot for SCAN Data in Realtime" height="350">
+</p>
+   <p align="center">Waterfall Plot for SCAN Data in Realtime</p>
+
+
+
+
+### Saving SCAN Data to CSV
+
+```python
+
+
+```
+
+
+
+### Accessing the NanoVNA Directly
+
+In some cases, this library may not cover all possible command versions, or new features might not be included yet. The tinySA can be accessed directly using the `command()` function. There is NO ERROR CHECKING on this function. It takes the full argument, just as if arguments were entered on the command line. 
+
+```python
+
+
+```
+
+
+
+
+## List of NanoVNA Commands and their Library Commands
 
 Library functions are organized based on the command passed to the device. For example, any functions with shortcuts for using the `sweep` command will be grouped under `sweep`. This list and the following list in the [Additional Library Commands](#additional-library-commands) section describe the functions in this library. 
 
@@ -378,6 +1420,10 @@ Marker levels will use the selected unit Marker peak will activate the marker (i
     * Results: `bytearray(b'0 5.375000e+00 0.000000000 \r\n1 5.875000e+00 0.000000000 \r\n1 5.375000e+00 0.000000000 \r\n2 5.375000e+00 0.000000000 \r\n2 5.375000e+00 0.000000000 \r')`
     * Example arg: `scan 0 2e6 5 4`
     * Results: `bytearray(b'5.343750e+00 0.000000000 \r\n5.843750e+00 0.000000000 \r\n5.843750e+00 0.000000000 \r\n5.343750e+00 0.000000000 \r\n5.843750e+00 0.000000000 \r')`
+
+
+    bytearray(b'sweep points exceeds range 51 -201\r')
+    bytearray(b'frequency range is invalid\r')
 * **Alias Functions:**
     * None, but see`plotting_scan.py` example
 * **CLI Wrapper Usage:**
@@ -389,19 +1435,14 @@ Marker levels will use the selected unit Marker peak will activate the marker (i
 
 ### **sweep**
 * **Description:** Set sweep boundaries or execute a sweep
-* **Original Usage:** `sweep [(start|stop|center|span|cw {frequency}) | ({start(Hz)} {stop(Hz)} [0..MAX PTS] ) ]`
+* **Original Usage:** `sweep {start(Hz)} [stop(Hz)]\r\n\tsweep {start|stop|center|span|cw} {freq(Hz)}`
+
 * **Direct Library Function Call:** `config_sweep(argName=start|stop|center|span|cw, val=Int|Float)` AND `preform_sweep(start, stop, pts)`
 * **Example Return:** 
     * empty bytearray `b''`
     * bytearray(b'0 800000000 450\r')
 * **Alias Functions:**
-    * `get_sweep_params()`
-    * `set_sweep_start(val=FREQ)`
-    * `set_sweep_stop(val=FREQ)`
-    * `set_sweep_center(val=FREQ)`
-    * `set_sweep_span(val=Int|Float)`
-    * `set_sweep_cw(val=Int|Float)`
-    * `run_sweep(start=FREQ, stop=FREQ, pts=INT)`
+    * 
 * **CLI Wrapper Usage:**
 * **Notes:**  sweep without arguments lists the current sweep settings, the frequencies specified should be within the permissible range. The sweep commands apply both to input and output modes. MAX PTS is device dependent; 290 for tinySA Basic and 450 for tinySA Ultra and newer
 * sweep start {frequency}: sets the start frequency of the sweep.
