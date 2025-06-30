@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 ##-------------------------------------------------------------------------------
 #   nanoVNA_python
-#   './examples/plotting_s11_waterfall.py'
+#   './examples/plotting_waterfall_static.py'
 #   A waterfall plot example for S11 data using matplotlib.
 #   The waterfall plot is shown after data is collected and exported
 #
@@ -20,18 +20,14 @@ import time
 from datetime import datetime
 
 def convert_s11_data_to_arrays(start, stop, pts, data):
-    """
-    Convert S11 data to frequency and S11 arrays.
-    Assumes data contains pairs of values (real/imag).
-    """
+    # Convert the raw device S11 data to frequency and S11 arrays.
+    # given the format of the data, this is assuming the data 
+    # contains PAIRS of values (real/imag or mag/phase).
     # Create frequency array
     freq_arr = np.linspace(start, stop, pts)
     
-    # Handle error data replacement
-    data1 = bytearray(data.replace(b"-:.0", b"-10.0"))
-    
     # Parse data into pairs of values
-    lines = data1.decode('utf-8').split('\n')
+    lines = data.decode('utf-8').split('\n')
     real_parts = []
     imag_parts = []
     
@@ -66,9 +62,8 @@ def convert_s11_data_to_arrays(start, stop, pts, data):
     return freq_arr, real_arr, imag_arr, magnitude_db, phase_deg
 
 def collect_s11_waterfall_data(nvna, start, stop, pts, outmask, num_scans, scan_interval):
-    """
-    Collect multiple S11 scans for waterfall plot
-    """
+    # collects the scans for the waterfall plot
+
     waterfall_real = []      # 2D array for real components
     waterfall_imag = []      # 2D array for imaginary components  
     waterfall_magnitude = [] # 2D array for magnitude in dB
@@ -109,9 +104,6 @@ def collect_s11_waterfall_data(nvna, start, stop, pts, outmask, num_scans, scan_
             timestamps)
 
 def plot_s11_waterfall(freq_arr, waterfall_real, waterfall_imag, waterfall_magnitude, waterfall_phase, timestamps, start, stop):
-    """
-    Create comprehensive S11 waterfall plots
-    """
     # Create figure with subplots
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
     
