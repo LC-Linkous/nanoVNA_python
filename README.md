@@ -1146,7 +1146,99 @@ if __name__ == "__main__":
 ### Saving SCAN Data to CSV
 
 ```python
+# import NanoVNA library
+# (NOTE: check library path relative to script path)
+from src.nanoVNA_python import nanoVNA
+# imports FOR THE EXAMPLE
+import csv
+import numpy as np
 
+def convert_s11_data_to_arrays(start, stop, pts, data):
+    # Convert the raw data so that the frequency, real, and imaginary are all stored.
+
+    # Create frequency array
+    freq_arr = np.linspace(start, stop, pts)
+    
+    # Parse data into pairs of values (real/imaginary)
+    lines = data.decode('utf-8').split('\n')
+    real_parts = []
+    imag_parts = []
+    
+    for line in lines:
+        if line.strip():
+            values = line.split()
+            if len(values) >= 2:
+                try:
+                    real_val = float(values[0])
+                    imag_val = float(values[1])
+                    real_parts.append(real_val)
+                    imag_parts.append(imag_val)
+                except ValueError:
+                    continue
+    
+    # Convert to numpy arrays
+    real_arr = np.array(real_parts)
+    imag_arr = np.array(imag_parts)
+    
+    # Adjust frequency array to match actual data length
+    actual_pts = len(real_arr)
+    if actual_pts != pts:
+        freq_arr = np.linspace(start, stop, actual_pts)
+    
+    return freq_arr, real_arr, imag_arr
+
+# create a new nanoVNA object    
+nvna = nanoVNA()
+# set the return message preferences
+nvna.set_verbose(True) #detailed messages
+nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+
+# attempt to autoconnect
+found_bool, connected_bool = nvna.autoconnect()
+
+# if port closed, then return error message
+if connected_bool == False:
+    print("ERROR: could not connect to port")
+else: 
+    # if port found and connected, then complete task(s) and disconnect
+    # the S11 (return loss) data is the default collection for this tutorial
+    print("Connected to nanoVNA - collecting S11 data...")
+    
+    # set scan values
+    start = int(1e9)  # 1 GHz
+    stop = int(3e9)   # 3 GHz
+    pts = 200         # sample points
+    outmask = 2       # get measured data 
+    
+    # scan for S11 data
+    data_bytes = nvna.scan(start, stop, pts, outmask)
+    print(f"Received {len(data_bytes)} bytes of S11 data")
+
+    nvna.resume() #resume so screen isn't still frozen
+
+    # disconnect because in this example we're done reading from device
+    nvna.disconnect()
+    
+    # processing after disconnect
+    # convert data to 3 arrays: frequency, real, imaginary
+    freq_arr, real_arr, imag_arr = convert_s11_data_to_arrays(start, stop, pts, data_bytes)
+    
+    # Save the RAW data to CSV
+    filename = "s11_raw_data.csv"
+       
+    # Write out to csv: frequency, real, imaginary
+    with open(filename, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+
+        # Write header row
+        writer.writerow(['Frequency_Hz', 'S11_Real', 'S11_Imaginary'])
+
+        # Write data rows (frequency, real, imaginary triplets)
+        for freq, real, imag in zip(freq_arr, real_arr, imag_arr):
+            writer.writerow([f'{freq:.0f}', f'{real:.6f}', f'{imag:.6f}'])
+
+    print(f"RAW S11 data saved to {filename}")
+    print(f"Total: {len(freq_arr)} data points saved")
 
 ```
 
@@ -1158,6 +1250,45 @@ In some cases, this library may not cover all possible command versions, or new 
 
 ```python
 
+# import NanoVNA library
+# (NOTE: check library path relative to script path)
+from src.nanoVNA_python import nanoVNA 
+
+
+# create a new tinySA object    
+nvna = nanoVNA()
+
+# set the return message preferences 
+nvna.set_verbose(True) #detailed messages
+nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+
+
+# attempt to autoconnect
+found_bool, connected_bool = nvna.autoconnect()
+
+# if port closed, then return error message
+if connected_bool == False:
+    print("ERROR: could not connect to port")
+else: # if port found and connected, then complete task(s) and disconnect
+
+    # get device info
+    msg = nvna.command("info")
+    print(msg)
+
+
+    # get device Id
+    msg = nvna.command("SN")
+    print(msg)
+
+    # scan example data
+    # NOTE: scan REQUIRES integers,
+    #  so the 1e9 fo 1 GHz notation does not work in a string
+    data_bytes = nvna.command("scan 1000000000 2500000000 200 2")
+    print(data_bytes)
+
+    nvna.resume() #resume 
+
+    nvna.disconnect()
 
 ```
 
@@ -1180,37 +1311,29 @@ All of the listed commands are included in this API to some degree, but error ch
 Quick Link Table:
 |  |   |     |   |       |      |      |
 |-------|-------|-------|-------|-------|-------|-------|
-|   |  |   |  |     | [calc](#calc)        |  |
-| [capture](#capture) | [clearconfig](#clearconfig) | [color](#color)   | [correction](#correction) |       | [data](#data)        | [deviceid](#deviceid)  |
-| [direct](#direct) | [ext_gain](#ext_gain)    | [fill](#fill)       | [freq](#freq)        | [freq_corr](#freq_corr) | [frequencies](#frequencies) | [help](#help)  |
-| [hop](#hop)            | [if](#if)           | [if1](#if1)          | [info](#info)     | [level](#level)             | [levelchange](#levelchange) | [leveloffset](#leveloffset) |
-| [line](#line) | [load](#load)   | [lna](#lna)          | [lna2](#lna2)     | [marker](#marker)           | [menu](#menu)     | [mode](#mode)           |
-| [modulation](#modulation) | [output](#output)  | [pause](#pause)   | [rbw](#rbw)                 | [recall](#recall) | [refresh](#refresh)     | [release](#release) |
-| [remark](#remark)    | [repeat](#repeat) | [reset](#reset)             | [restart](#restart) | [resume](#resume)      | [save](#save)       | [saveconfig](#saveconfig) |
-| [scan](#scan)     | [scanraw](#scanraw)         | [sd_delete](#sd_delete) | [sd_list](#sd_list)   | [sd_read](#sd_read) | [selftest](#selftest) | [spur](#spur)     |
-| [status](#status)           | [sweep](#sweep)   | [sweeptime](#sweeptime) | [sweep_voltage](#sweep_voltage) | [text](#text)   | [threads](#threads) | [touch](#touch)             |
-| [touchcal](#touchcal) | [touchtest](#touchtest) | [trace](#trace)     | [trigger](#trigger)  | [ultra](#ultra)   | [usart_cfg](#usart_cfg)     | [vbat](#vbat)     |
-| [vbat_offset](#vbat_offset) | [version](#version) | [wait](#wait)        | [zero](#zero)     |                         |                     |                      |
+| [capture](#capture) | [clearconfig](#clearconfig)  | [data](#data) |[frequencies](#frequencies)  | [help](#help)    |  [info](#info)       |  [marker](#marker)   |
+|[pause](#pause)  |[recall](#recall)  |  [reset](#reset)    |[restart](#restart)   | [resume](#resume) | [scan](#scan)        | [save](#save)   |
+|[saveconfig](#saveconfig)  |    | [sweep](#sweep)       | [touchcal](#touchcal)    |[touchtest](#touchtest)  | [trace](#trace)  | [version](#version)   |
+|        |      |          |     |      |   |  |
+|  |  |    |      |         |    |         |
 
 
+command() called with ::info
+bytearray(b'Model:        NanoVNA-F_V2\r\nFrequency:    50k ~ 3GHz\r\nBuild time:   Mar  2 2021 - 09:40:50 CST\r')
+command() called with ::SN
+bytearray(b'333437334507468C\r')
 
-
-Quick Link Table:
-|  |   |     |   |       |      |      |
-|-------|-------|-------|-------|-------|-------|-------|
-| [abort](#abort)   | [actual_freq](#actual_freq)  | [agc](#agc)      | [attenuate](#attenuate)  | [bulk](#bulk)       | [calc](#calc)        | [caloutput](#caloutput) |
-| [capture](#capture) | [clearconfig](#clearconfig) | [color](#color)   | [correction](#correction) | [dac](#dac)        | [data](#data)        | [deviceid](#deviceid)  |
-| [direct](#direct) | [ext_gain](#ext_gain)    | [fill](#fill)       | [freq](#freq)        | [freq_corr](#freq_corr) | [frequencies](#frequencies) | [help](#help)  |
-| [hop](#hop)            | [if](#if)           | [if1](#if1)          | [info](#info)     | [level](#level)             | [levelchange](#levelchange) | [leveloffset](#leveloffset) |
-| [line](#line) | [load](#load)   | [lna](#lna)          | [lna2](#lna2)     | [marker](#marker)           | [menu](#menu)     | [mode](#mode)           |
-| [modulation](#modulation) | [output](#output)  | [pause](#pause)   | [rbw](#rbw)                 | [recall](#recall) | [refresh](#refresh)     | [release](#release) |
-| [remark](#remark)    | [repeat](#repeat) | [reset](#reset)             | [restart](#restart) | [resume](#resume)      | [save](#save)       | [saveconfig](#saveconfig) |
-| [scan](#scan)     | [scanraw](#scanraw)         | [sd_delete](#sd_delete) | [sd_list](#sd_list)   | [sd_read](#sd_read) | [selftest](#selftest) | [spur](#spur)     |
-| [status](#status)           | [sweep](#sweep)   | [sweeptime](#sweeptime) | [sweep_voltage](#sweep_voltage) | [text](#text)   | [threads](#threads) | [touch](#touch)             |
-| [touchcal](#touchcal) | [touchtest](#touchtest) | [trace](#trace)     | [trigger](#trigger)  | [ultra](#ultra)   | [usart_cfg](#usart_cfg)     | [vbat](#vbat)     |
-| [vbat_offset](#vbat_offset) | [version](#version) | [wait](#wait)        | [zero](#zero)     |                         |                     |                      |
-
-
+    beep:                usage: beep on/off\r\n
+    cal:    usage: cal [load|open|short|thru|done|reset|on|off|in]\r\n
+    cwfreq:         usage: cwfreq {frequency(Hz)}\r\n
+    edelay:              usage: edelay {id}\r\n
+    lcd:                 usage: lcd X Y WIDTH HEIGHT FFFF\r\n
+    port:                usage: port {1:S11 2:S21}\r\n
+    pwm:       usage: pwm {0.0-1.0}\r\n
+    info:                usage: NanoVNA-F info\r\n
+    SN:                  usage: NanoVNA-F ID\r\n
+        resolution:          usage: LCD resolution\r\n
+    LCD_ID:              usage: LCD ID\
 
 ### **capture**
 * **Description:** Requests a screen dump to be sent in binary format of HEIGHTxWIDTH pixels of each 2 bytes
