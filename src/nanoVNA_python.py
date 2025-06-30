@@ -319,7 +319,28 @@ class nanoVNA():
 # Serial command config, input error checking
 ######################################################################
 
-  
+    def beep(self, val):
+        # turn the beep on or off
+        # usage: beep [on|off]
+        # example return: bytearray(b'')
+        #explicitly allowed vals
+        accepted_vals = ['on','off']
+        #check input
+        if str(val) in accepted_vals:
+            writebyte = 'beep '+str(val)+'\r\n'
+            msgbytes = self.nanoVNA_serial(writebyte, printBool=False)  
+            self.print_message("beep() called to turn beep " + str(val)) 
+        else:
+            self.print_message("ERROR: beep() takes vals [on|off]")
+            msgbytes = self.error_byte_return()
+        return msgbytes
+
+    def beep_on(self):
+        return self.beep(val='on')
+    def beep_off(self):
+        return self.capture(val='off')
+
+
     def capture(self):
         # requests a screen dump to be sent in binary format 
         # of 320x240 pixels of each 2 bytes
