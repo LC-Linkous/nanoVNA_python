@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 
 ##-------------------------------------------------------------------------------\
-#   tinySA_python
+#   nanoVNA_python
 #   './examples/using_autoconnect.py'
 #   This is an example of using the autoconnect feature. 
 #   The detected device info is returned and the serial disconnected
