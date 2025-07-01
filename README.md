@@ -1314,16 +1314,23 @@ Quick Link Table:
 | [capture](#capture) | [clearconfig](#clearconfig)  | [data](#data) |[frequencies](#frequencies)  | [help](#help)    |  [info](#info)       |  [marker](#marker)   |
 |[pause](#pause)  |[recall](#recall)  |  [reset](#reset)    |[restart](#restart)   | [resume](#resume) | [scan](#scan)        | [save](#save)   |
 |[saveconfig](#saveconfig)  |    | [sweep](#sweep)       | [touchcal](#touchcal)    |[touchtest](#touchtest)  | [trace](#trace)  | [version](#version)   |
-|        |      |          |     |      |   |  |
+| [beep](#beep) | [resolution](#resolution)|  [LCD_ID](#LCD_ID)        |     |      |   |  |
 |  |  |    |      |         |    |         |
 
 
-command() called with ::info
-bytearray(b'Model:        NanoVNA-F_V2\r\nFrequency:    50k ~ 3GHz\r\nBuild time:   Mar  2 2021 - 09:40:50 CST\r')
+
+[cal](#cal)
+[cwfreq](#cwfreq)
+[edelay](#edelay)
+[lcd](#lcd)
+[port](#port)
+[pwm](#pwm)
+[SN](#SN)
+
+
 command() called with ::SN
 bytearray(b'333437334507468C\r')
 
-    beep:                usage: beep on/off\r\n
     cal:    usage: cal [load|open|short|thru|done|reset|on|off|in]\r\n
     cwfreq:         usage: cwfreq {frequency(Hz)}\r\n
     edelay:              usage: edelay {id}\r\n
@@ -1332,8 +1339,21 @@ bytearray(b'333437334507468C\r')
     pwm:       usage: pwm {0.0-1.0}\r\n
     info:                usage: NanoVNA-F info\r\n
     SN:                  usage: NanoVNA-F ID\r\n
-        resolution:          usage: LCD resolution\r\n
-    LCD_ID:              usage: LCD ID\
+
+
+
+
+### **beep**
+* **Description:** Turn the beep on or off (but why would you want to turn it off?)
+* **Original Usage:** `beep [on|off]`
+* **Direct Library Function Call:** `beep()`
+* **Example Return:** `b''`
+* **Alias Functions:**
+    * `beep_on()`
+    * `beep_off()`
+* **CLI Wrapper Usage:**
+* **Notes:** 
+
 
 ### **capture**
 * **Description:** Requests a screen dump to be sent in binary format of HEIGHTxWIDTH pixels of each 2 bytes
@@ -1355,6 +1375,17 @@ bytearray(b'333437334507468C\r')
     * `clear_and_reset()`
 * **CLI Wrapper Usage:**
 * **Notes:** Requires password '1234'. Hardcoded. Other functions need to be used with this to complete the process.
+
+
+### **cwfreq**
+* **Description:** Set the continious wave (CW) frequency
+* **Original Usage:** `cwfreq {frequency in Hz}`
+* **Direct Library Function Call:** `cwfreq(val=Int|Freq in Hz)`
+* **Example Return:**  ``
+* **Alias Functions:**
+    * `set_cwfreq(val=Int|Freq in Hz)` 
+* **CLI Wrapper Usage:**
+* **Notes:**   
 
 
 ### **data**
@@ -1439,6 +1470,18 @@ bytearray(b'333437334507468C\r')
 * **Notes:** 
 
 
+### **LCD_ID**
+* **Description:** Get the ID of the LCD screen
+* **Original Usage:** `LCD_ID`
+* **Direct Library Function Call:** `LCD_ID()`
+* **Example Return:** `bytearray(b'118200\r')`
+* **Alias Functions:**
+    * `get_LCD_ID()`
+* **CLI Wrapper Usage:**
+* **Notes:** 
+
+
+
 ### **marker**
 * **Description:** sets or dumps marker info
 * **Original Usage:**  `usage: marker [n] [off|{index}]`
@@ -1497,6 +1540,16 @@ Marker levels will use the selected unit Marker peak will activate the marker (i
     *  Has not worked in testing on development DUT, but appears to work on some devices online.
     *  0 seconds stops the restarting process. 
 
+### **resolution**
+* **Description:** Get the resolution of the LCD screen in pixels
+* **Original Usage:** `resolution`
+* **Direct Library Function Call:** `resolution()`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * `get_resolution()`
+    * `lcd_resolution()`
+* **CLI Wrapper Usage:**
+* **Notes:** 
 
 ### **resume**
 * **Description:** Resumes the sweeping in either input or output mode

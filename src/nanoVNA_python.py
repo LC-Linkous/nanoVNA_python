@@ -380,6 +380,25 @@ class nanoVNA():
         self.print_message("command() called with ::" + str(val))
         return msgbytes   
 
+    def cwfreq(self, val):
+        # Set the continious wave (CW) frequency
+        # usage: cwfreq {freq in Hz}
+        # example return:
+        
+        if (isinstance(val,int)):
+            writebyte = 'cwfreq' + str(val) + '\r\n'
+            msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+            self.print_message("setting CW frequency to " +str(val))
+        else:
+            self.print_message("ERROR: cwfreq requires an Int")
+            msgbytes = self.error_byte_return()
+
+        return msgbytes
+
+    def set_cwfreq(self, val):
+        # alias for cwfreq
+        return self.cwfreq(val)
+
 
     def data(self, val=0):
         # dumps the trace data. 
@@ -419,11 +438,11 @@ class nanoVNA():
         return self.frequencies()
     
 
-    # TODO
     def info(self):
         # displays various SW and HW information
         # usage: info
-        # example return: bytearray(b'tinySA ...\r')
+        # example return: bytearray(b'Model:        NanoVNA-F_V2\r\nFrequency:   
+        #  50k ~ 3GHz\r\nBuild time:   Mar  2 2021 - 09:40:50 CST\r')
 
         writebyte = 'info\r\n'
         msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
@@ -433,6 +452,21 @@ class nanoVNA():
     def get_info(self):
         # alias for info()
         return self.info()
+
+
+    def LCD_ID(self):
+        # displays various SW and HW information
+        # usage: info
+        # example return: bytearray(b'tinySA ...\r')
+
+        writebyte = 'LCD_ID\r\n'
+        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+        self.print_message("returning LCD_ID value")
+        return msgbytes 
+    
+    def get_LCD_ID(self):
+        # alias for LCD_ID()
+        return self.LCD_ID()
 
 
     def marker(self, ID, val):
@@ -508,6 +542,24 @@ class nanoVNA():
     def reset_device(self):
         # alias function for reset()
         return self.reset()
+
+    def resolution(self):
+        # get the resolution of the LCD screen
+        # usage: resolution
+        # example return: bytearray(b'800,480\r')
+
+        writebyte = 'resolution\r\n'
+        self.print_message("getting the screen resolution in pixels")
+        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+        return msgbytes 
+    
+    def get_resolution(self):
+        # alias function for resolution()
+        return self.resolution() 
+    def lcd_resolution(self):
+        # alias function for resolution()
+        return self.resolution() 
+
 
 
     def resume(self):
