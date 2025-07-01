@@ -1314,31 +1314,9 @@ Quick Link Table:
 | [capture](#capture) | [clearconfig](#clearconfig)  | [data](#data) |[frequencies](#frequencies)  | [help](#help)    |  [info](#info)       |  [marker](#marker)   |
 |[pause](#pause)  |[recall](#recall)  |  [reset](#reset)    |[restart](#restart)   | [resume](#resume) | [scan](#scan)        | [save](#save)   |
 |[saveconfig](#saveconfig)  |    | [sweep](#sweep)       | [touchcal](#touchcal)    |[touchtest](#touchtest)  | [trace](#trace)  | [version](#version)   |
-| [beep](#beep) | [resolution](#resolution)|  [LCD_ID](#LCD_ID)        |     |      |   |  |
-|  |  |    |      |         |    |         |
+| [beep](#beep) | [resolution](#resolution)|  [LCD_ID](#LCD_ID)        |  [cal](#cal)   |  [lcd](#lcd)    |   |  |
+|[cwfreq](#cwfreq)  | [SN](#SN) |  [edelay](#edelay)  | [port](#port)     | [pwm](#pwm)        |    |         |
 
-
-
-[cal](#cal)
-[cwfreq](#cwfreq)
-[edelay](#edelay)
-[lcd](#lcd)
-[port](#port)
-[pwm](#pwm)
-[SN](#SN)
-
-
-command() called with ::SN
-bytearray(b'333437334507468C\r')
-
-    cal:    usage: cal [load|open|short|thru|done|reset|on|off|in]\r\n
-    cwfreq:         usage: cwfreq {frequency(Hz)}\r\n
-    edelay:              usage: edelay {id}\r\n
-    lcd:                 usage: lcd X Y WIDTH HEIGHT FFFF\r\n
-    port:                usage: port {1:S11 2:S21}\r\n
-    pwm:       usage: pwm {0.0-1.0}\r\n
-    info:                usage: NanoVNA-F info\r\n
-    SN:                  usage: NanoVNA-F ID\r\n
 
 
 
@@ -1354,6 +1332,33 @@ bytearray(b'333437334507468C\r')
 * **CLI Wrapper Usage:**
 * **Notes:** 
 
+### **cal**
+* **Description:** Work through the calibration process. Requores physical interaction with the device
+* **Original Usage:** `cal [load|open|short|thru|done|reset|on|off|in]`
+* **Direct Library Function Call:** `cal(val=load|open|short|thru|done|reset|on|off|in)`
+* **Example Return:** ``
+* **Alias Functions:**
+    * `cal_load()` - calibrate with the load connector
+    * `cal_open()` - calibrate with the open connector
+    * `cal_short()`- calibrate with the short connector
+    * `cal_thru()` - calibrate with cable connected to both ports
+    * `cal_done()` - done with calibration
+    * `cal_reset()` - reset calibration data. Do this BEFORE calibrating
+    * `cal_on()`  - start measuing with calibration, apply it to device
+    * `cal_off()` - stop measuing with calibration being applied to device
+    * `cal_in()` - internal calibration (?? TODO)
+* **CLI Wrapper Usage:**
+* **Notes:**  
+    * `cal` no argument gets the calibration status
+    * `cal load` calibrate with the load connector. Hardware must be attatched before calibration
+    * `cal open` calibrate with the open connector. Hardware must be attatched before calibration
+    * `cal short` calibrate with the open connector. Hardware must be attatched before calibration
+    * `cal thru` calibrate with cable connected to both ports. Hardware must be attatched before calibration
+    * `cal done` complete the calibration
+    * `cal reset` reset calibration data. Do this BEFORE calibrating
+    * `cal on` start measuing with calibration, apply it to device
+    * `cal off` stop measuing with calibration being applied to device
+
 
 ### **capture**
 * **Description:** Requests a screen dump to be sent in binary format of HEIGHTxWIDTH pixels of each 2 bytes
@@ -1363,7 +1368,7 @@ bytearray(b'333437334507468C\r')
 * **Alias Functions:**
     * `capture_screen()`
 * **CLI Wrapper Usage:**
-* **Notes:** tinySA original: 320x240, tinySA Ultra and newer: 480x320  
+* **Notes:** Data is in little-endian mode. Screen resolution is 800*480 for NanoVNA-F V2 and V3 
 
 
 ### **clearconfig**
@@ -1374,11 +1379,11 @@ bytearray(b'333437334507468C\r')
 * **Alias Functions:**
     * `clear_and_reset()`
 * **CLI Wrapper Usage:**
-* **Notes:** Requires password '1234'. Hardcoded. Other functions need to be used with this to complete the process.
+* **Notes:** Requires password '1234'. Hardcoded. Other functions need to be used with this to complete the process. This causes the deletion of ALL settings and calibration. USE WITH CAUTION.
 
 
 ### **cwfreq**
-* **Description:** Set the continious wave (CW) frequency
+* **Description:** Set the continious wave (CW) pluse frequency
 * **Original Usage:** `cwfreq {frequency in Hz}`
 * **Direct Library Function Call:** `cwfreq(val=Int|Freq in Hz)`
 * **Example Return:**  ``
@@ -1390,15 +1395,27 @@ bytearray(b'333437334507468C\r')
 
 ### **data**
 * **Description:** Gets the trace data
-* **Original Usage:** `data 0..2`
-* **Direct Library Function Call:** `data(val=0|1|2)`
+* **Original Usage:** `data {0..1}` TODO: update
+* **Direct Library Function Call:** `data(val=None|0|1)`
 * **Example Return:** 
 ` format bytearray(b'-0.086151 0.957274\r\n1.013057 -0.197761\r\n0.944041 -0.348532\r\n0.858225 -0....\r\n-0.588183 -0.481691\r\n-0.646600 -0.426130\r')`
 * **Alias Functions:**
 * **CLI Wrapper Usage:**
-* **Notes:**   
+* **Notes:**  S11 data is printed by default, but can be selected with input `0` for S11 and input `1` for S21
        
-  
+
+### **edelay**
+* **Description:** electrical delay. This lets users compensate for time delay caused by components attatched to the port, such as cables, adapters, etc.
+* **Original Usage:** `edelay id`
+* **Direct Library Function Call:** `edelay()`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * `set_edelay()`
+* **CLI Wrapper Usage:**
+* **Notes:** 
+    * No params should get the curent edlay value. If there is 1 paramter, the delat is in nanoseconds. 
+
+
 ### **frequencies**
 * **Description:** Gets the frequencies used by the last sweep
 * **Original Usage:** `frequencies`
@@ -1470,32 +1487,48 @@ bytearray(b'333437334507468C\r')
 * **Notes:** 
 
 
+### **LCD**
+* **Description:** Draw rectangles on the screen
+* **Original Usage:** `lcd {X} {Y} {WIDTH} {HEIGHT} {FFFF}`
+* **Direct Library Function Call:** `lcd()`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * `draw_rect()`
+    * TODO
+* **CLI Wrapper Usage:**
+* **Notes:** 
+
+
 ### **LCD_ID**
 * **Description:** Get the ID of the LCD screen
-* **Original Usage:** `LCD_ID`
-* **Direct Library Function Call:** `LCD_ID()`
-* **Example Return:** `bytearray(b'118200\r')`
+* **Original Usage:** `lcd X Y WIDTH HEIGHT FFFF`
+* **Direct Library Function Call:** `LCD()`
+* **Example Return:** ` `
 * **Alias Functions:**
     * `get_LCD_ID()`
 * **CLI Wrapper Usage:**
 * **Notes:** 
+ * Had a little trouble finding this command. It is documetned in https://www.sysjoint.com/ueditor/php/upload/file/PDF/NanoVNA-F%20V3%20Portable%20Vector%20Network%20Analyzer%20User%20Guide%20V1.0.pdf
 
 
 
 ### **marker**
 * **Description:** sets or dumps marker info
-* **Original Usage:**  `usage: marker [n] [off|{index}]`
-* **Direct Library Function Call:** `marker(ID=Int|0..4, val="on"|"off"|"peak")`
+* **Original Usage:**  `usage: marker [n] [on|off|{index}]`
+* **Direct Library Function Call:** `marker(ID=Int|0..4, val="on"|"off")`
 * **Example Return:** empty bytearray
 * **Alias Functions:**
-    * 
+    * TODO. Also try 'peak' arg for a marker
 * **CLI Wrapper Usage:**
-* **Notes:**   where id=1..4 index=0..num_points-1
-Marker levels will use the selected unit Marker peak will activate the marker (if not done already), position the marker on the strongest signal and display the marker info The frequency must be within the selected sweep range mode. Alias functions need error checking. 
+* **Notes:**  
+    * `marker` no argument gets the attributes of the active markers.
+    * `marker {ID=integer}` gets the attributes of that marker
+    * The frequency must be within the selected sweep range mode.
+    * Alias functions need error checking. 
 
 
 ### **pause**
-* **Description:** Pauses the sweeping in either input or output mode
+* **Description:** Pauses the sweep
 * **Original Usage:** `pause`
 * **Direct Library Function Call:** `pause()`
 * **Example Return:** empty bytearray
@@ -1505,26 +1538,39 @@ Marker levels will use the selected unit Marker peak will activate the marker (i
 * **Notes:** 
 
 
-### **recall**
-* **Description:** Loads a previously stored preset from the device
-* **Original Usage:** ` recall 0..4`
-* **Direct Library Function Call:** `recall(val=0|1|2|3|4)`
+### **pwm**
+* **Description:** Adjustes the pwm of the screen. This is screen brightness
+* **Original Usage:** `pwm`
+* **Direct Library Function Call:** `pwm(val=Float|0.0-1.0)`
 * **Example Return:** empty bytearray
 * **Alias Functions:**
-    * None
+    * TODO
 * **CLI Wrapper Usage:**
-* **Notes:** Same functionality as `load()`. 0 is the startup preset.
+* **Notes:** 
+    * 0.1 is 10% brightness, etc.
+
+
+
+### **recall**
+* **Description:** Loads a previously stored calibration from the device
+* **Original Usage:** ` recall 0..4...6`
+* **Direct Library Function Call:** `recall(val=0|1|2|3|4|5|6)`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * None TODO
+* **CLI Wrapper Usage:**
+* **Notes:** where 0 is the startup preset. No arguments prints the frequency range of the save results. Appears to be the same as `save()` 
 
 
 ### **reset**
-* **Description:** Resets the tinySA
+* **Description:** Resets the NanoVNA device. 
 * **Original Usage:** `reset`
 * **Direct Library Function Call:** `reset()`
 * **Example Return:** empty bytearray, serial error message. depends on the system.
 * **Alias Functions:**
     * `reset_device()`
 * **CLI Wrapper Usage:**
-* **Notes:**  Disconnects the serial too.
+* **Notes:**  Disconnects the serial too, so will need to reconnect to continue using. 
 
 
 ### **restart**
@@ -1552,7 +1598,7 @@ Marker levels will use the selected unit Marker peak will activate the marker (i
 * **Notes:** 
 
 ### **resume**
-* **Description:** Resumes the sweeping in either input or output mode
+* **Description:** Resumes the sweep
 * **Original Usage:** `resume`
 * **Direct Library Function Call:** `resume()`
 * **Example Return:** empty bytearray
@@ -1563,24 +1609,24 @@ Marker levels will use the selected unit Marker peak will activate the marker (i
 
 
 ### **save**
-* **Description:** Saves the current setting to a preset
-* **Original Usage:** `save 0..4`
-* **Direct Library Function Call:** `save(val=0..4)`
+* **Description:** Saves the current calibration data. Might save the current trace settings and marker position.
+* **Original Usage:** `save 0..4...6`
+* **Direct Library Function Call:** `save(val=None|0..4..6)`
 * **Example Return:** empty bytearray
 * **Alias Functions:**
-    * None
+    * TODO
 * **CLI Wrapper Usage:**
-* **Notes:**  where 0 is the startup preset
+* **Notes:**  where 0 is the startup preset. No arguments prints the frequency range of the save results.
 
 ### **saveconfig**
-* **Description:** Saves the device configuration data
+* **Description:** Saves the device configuration data. This includes language and touch calibration. 
 * **Original Usage:** `saveconfig`
 * **Direct Library Function Call:** `save_config()`
 * **Example Return:** empty bytearray
 * **Alias Functions:**
     * None
 * **CLI Wrapper Usage:**
-* **Notes:** Takes no arguments.
+* **Notes:** 
  
 
 ### **scan**
@@ -1588,6 +1634,7 @@ Marker levels will use the selected unit Marker peak will activate the marker (i
 * **Original Usage:** `scan {start(Hz)} {stop(Hz)} [points] [outmask]`
 * **Direct Library Function Call:** `scan(start, stop, pts, outmask)`
 * **Example Return:** 
+TODO :update examples from tinySA
     * Example arg: `scan 0 2e6 5 1`
     * Results: `bytearray(b'0 \r\n1 \r\n1 \r\n2 \r\n2 \r')`
     * Example arg: `scan 0 2e6 5 2`
@@ -1604,83 +1651,106 @@ Marker levels will use the selected unit Marker peak will activate the marker (i
     * None, but see`plotting_scan.py` example
 * **CLI Wrapper Usage:**
 * **Notes:**  
-    * `[points]` is the number of points in the scan. The MAX points is device dependent. Basic is 290, Ultra is 450 .
-    * `[outmask]`  1=frequencies, 2=measured data, 4=stored data. 3 not in documentation, but appears to blend 1 and 2.
-    * Documentation says outmask is "a binary OR of.", but there doesn't appear to be any binary math involved. 
+    * `[points]` is the number of points in the scan. The MAX points is device dependent. Commonly, [11 to 201] or [50, 201], ends not inclusive.
+    * `[outmask]` 
+     * 0 = no printout
+     * 1 = frequency vals
+     * 2 = S11 of sweep points
+     * 3 = frequency values & S11 of sweep pts
+     * 4 = S21 of sweep pts
+     * 5 = frequency values and & S21 data of sweep pts
+     * 6 = S11 and S21 data of sweep points
+     * 7 = frequency values, S11 and S21 data of sweep points
+    
+
+
+### **SN**
+* **Description:** Get the SN (likely, serial number) of the NanoVNA.
+* **Original Usage:** `SN`
+* **Direct Library Function Call:** `SN(None)`
+* **Example Return:** `bytearray(b'63507468C\r')` 
+* **Alias Functions:**
+    * `get_SN()`
+* **CLI Wrapper Usage:**
+* **Notes:** 
+    * NanoVNA-F ID  (hint returned by help for DUT)
+    * Example number changed from actual return. This is a 16-Bit serial number.
 
 
 ### **sweep**
-* **Description:** Set sweep boundaries or execute a sweep
-* **Original Usage:** `sweep {start(Hz)} [stop(Hz)]\r\n\tsweep {start|stop|center|span|cw} {freq(Hz)}`
+* **Description:** Set sweep momde, frequency and points
+* **Original Usage:** 
+    * `sweep {start(Hz)} {stop(Hz)} {points}`
+    *  `sweep {start|stop|center|span|cw|points} {freq(Hz)}`
 
 * **Direct Library Function Call:** `config_sweep(argName=start|stop|center|span|cw, val=Int|Float)` AND `preform_sweep(start, stop, pts)`
 * **Example Return:** 
     * empty bytearray `b''`
     * bytearray(b'0 800000000 450\r')
 * **Alias Functions:**
-    * 
+    * TODO
 * **CLI Wrapper Usage:**
-* **Notes:**  sweep without arguments lists the current sweep settings, the frequencies specified should be within the permissible range. The sweep commands apply both to input and output modes. MAX PTS is device dependent; 290 for tinySA Basic and 450 for tinySA Ultra and newer
-* sweep start {frequency}: sets the start frequency of the sweep.
-* sweep stop {frequency}: sets the stop frequency of the sweep.
-* sweep center {frequency}: sets the center frequency of the sweep.
-* sweep span {frequency}: sets the span of the sweep.
-* sweep cw {frequency}: sets the continuous wave frequency (zero span sweep). 
-* sweep {start(Hz)} {stop(Hz)} [0..MAX PTS]: sets the start and stop frequencies, and optionally the number of points in the sweep
+* **Notes:**  
+ * `sweep` with no arguments lists the current sweep settings, the frequencies specified should be within the permissible range. 
+ * `sweep {integer}` is interpreted as start frequency value.
+ * `sweep {integer} {integer}` is interpreted as start and stop frequencies.
+ * `sweep {integer} {integer} {integer}` is interpreted as start and stop frequencies, and the umber of points.
+* `sweep start {integer}`: sets the start frequency of the sweep.
+* `sweep stop {integer}`: sets the stop frequency of the sweep.
+* `sweep center {integer}`: sets the center frequency of the sweep.
+* `sweep span {integer}`: sets the span of the sweep.
+* `sweep cw {integer}`: sets the continuous wave frequency (zero span sweep). 
+
  
 ### **touchcal**
-* **Description:** starts the touch calibration
+* **Description:** starts the touch calibration. Physical interaction with the device screen is required.
 * **Original Usage:** `touchcal`
 * **Direct Library Function Call:** `touch_cal()`
 * **Example Return:** empty bytearray
 * **Alias Functions:**
     * `start_touch_cal()`
 * **CLI Wrapper Usage:**
-* **Notes:**  
+* **Notes:**  To save this, `saveconfig` must be used.
 
 ### **touchtest**
-* **Description:** starts the touch test
+* **Description:** starts the touch test. When this command is used, the screen can be drawn on to check responsiveness. 
 * **Original Usage:** `touchtest`
 * **Direct Library Function Call:** `touch_test()`
 * **Example Return:** empty bytearray
 * **Alias Functions:**
     * `start_touch_test()`
 * **CLI Wrapper Usage:**
-* **Notes:**  instructions on screen "touch panel, draw lines, press button to complete"
+* **Notes:**  There may be instructions on screen.
 
 ### **trace**
 * **Description:** displays all or one trace information or sets trace related information. INCOMPLETE due to how many combinations are possible.
-* **Original Usage:** 
-    * from help message return`bytearray(b'trace {dBm|dBmV|dBuV|RAW|V|Vpp|W}\r\ntrace {scale|reflevel} auto|{value}\r\ntrace [{trace#}] value\r\ntrace [{trace#}] {copy|freeze|subtract|view|value} {trace#}|off|on|[{index} {value}]\r')`
-    * general structure for commands: `trace [{trace#}] {copy|freeze|subtract|view|value} {trace#}|off|on|[{index} {value}]`
-    * from earlier documentation: `trace [{0..2} | dBm|dBmV|dBuV| V|W |store|clear|subtract | (scale|reflevel) auto|{level}]`  
+* **Original Usage:**  `trace [0|1|2|3|all] [{format}|scale|refpos|channel|off] [value]`
 * **Direct Library Function Call:**
-    * `trace_toggle(ID=Int|0..2..4, val="on"|"off")`
-    * `trace_select(ID=Int|0..2..4)`
-    * `trace_units(val="dBm"|"dBmV"|"dBuV"|"RAW"|"V"|"Vpp"|"W")`
-    * `trace_scale(val="auto"|Int|Float)`
-    * `trace_reflevel(val="auto"|Int|Float)`
-    * `trace_value(ID=Int)`
-    * `trace_subtract(ID1=Int, ID2=Int)`
-    * `trace_copy(ID1=Int, ID2=Int)`    
+    * None, see alias functions.
 * **Example Return:** 
      * empty bytearray  `b''`
-     * `select_trace(1)`: 
-        * `bytearray(b'1: dBm 0.000000000 10.000000000 \r')`
-    * `trace_value(1)`:
-        * `bytearray(b'trace 1 value 0 -91.13\r\ntrace 1 value 1 -92.59\r\ntrace 1 value 2 -93.09\r\ntrace 1 value 3 -89.59.....\r\ntrace 1 value 448 -84.78\r\ntrace 1 value 449 -85.25\r')`  (returns MAX POINTS number of readings. PTS not currently settable)
-    * 
+     * TODO
 * **Alias Functions:**
-    * None, see direct library function calls
-    * it is also suggested to use the `command()` function to preform more complex actions because this is a complicated command structure
+    * `trace`
+    * ``
+    * ``
+    * ``
+    * ``
+    * ``
+    * ``
+    * ``
 * **CLI Wrapper Usage:**
-* **Notes:** For readability, this command was split into multiple functions intitially rather than using complex alias functions. There is a mismatch of information of commands between versions, so this library uses the documentation returned by the device. 
-    * `select_trace()`: tinySA Ultra has 4 traces to choose from. Other devices may have other numbers of traces.
-    * `trace_reflevel(...)` : adjusts the reference level of a trace. Levels are specified in dB(m) and can be specified using a floating point notation. E.g. 10 or 2.5 [https://tinysa.org/wiki/pmwiki.php?n=Main.USBInterface](https://tinysa.org/wiki/pmwiki.php?n=Main.USBInterface)
+* **Notes:** 
+    * `trace` no args returns characteristics of active traces
+    * `trace {ID=integer}` gets characteristics of that trace. using 'all' returns information for all traces.
+    * `trace {ID=integer} {str=logmag|phase|smith|linear|delay|swr}`  The ID sets the trace ID, and the second argument indicates what trace data format is returned. 
+    * `trace {ID=integer} {on|off}` turn the traces on or off. using 'all' will toggle all traces on or off. TODO: confirm the 'on' - conflicting documentation.
+    * `trace {ID=integer} {str=scale|refpos|channel} {val=int}` the first argument is the ID of the trace. The second argument is an action to `scale` the trace by a numeric value, to set the reference position (`refpos`), or to set the channel. The third value specifies the value for the action.
+
 
 
 ### **version**
-* **Description:** returns the version text
+* **Description:** returns the firmware version
 * **Original Usage:** `version`
 * **Direct Library Function Call:** `version()` 
 * **Example Return:** empty bytearray
