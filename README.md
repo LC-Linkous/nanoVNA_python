@@ -1336,20 +1336,21 @@ Quick Link Table:
 
 
 ### **beep**
-* **Description:** Turn the beep on or off (but why would you want to turn it off?)
+* **Description:** Turn the beep on or off. 
 * **Original Usage:** `beep [on|off]`
 * **Direct Library Function Call:** `beep()`
 * **Example Return:** `b''`
 * **Alias Functions:**
     * `beep_on()`
     * `beep_off()`
+    * `beep_time(val=Int)`
 * **CLI Wrapper Usage:**
-* **Notes:** 
+* **Notes:** Beep plays a continious tone until it is turned off. 
 
 
 ### **cal**
 * **Description:** Work through the calibration process. Requires physical interaction with the device
-* **Original Usage:** `cal [load|open|short|thru|done|reset|on|off|in]`
+* **Original Usage:** `cal [load|open|short|thru|done|reset|on|off]`
 * **Direct Library Function Call:** `cal(val=load|open|short|thru|done|reset|on|off|in)`
 * **Example Return:** ``
 * **Alias Functions:**
@@ -1361,7 +1362,6 @@ Quick Link Table:
     * `cal_reset()` - reset calibration data. Do this BEFORE calibrating
     * `cal_on()`  - start measuring with calibration, apply it to device
     * `cal_off()` - stop messing with calibration being applied to device
-    * `cal_in()` - internal calibration (?? TODO)
 * **CLI Wrapper Usage:**
 * **Notes:**  
     * `cal` no argument gets the calibration status

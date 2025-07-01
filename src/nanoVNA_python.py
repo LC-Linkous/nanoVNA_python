@@ -338,12 +338,65 @@ class nanoVNA():
     def beep_on(self):
         return self.beep(val='on')
     def beep_off(self):
-        return self.capture(val='off')
+        return self.beep(val='off')
+    def beep_time(self, val):
+        try:
+            import time
+            self.beep(val='on')
+            time.sleep(float(val))
+            return self.beep(val='off')
+        except:
+            self.print_message("ERROR: beep_time() takes a numerical value in seconds")
+            msgbytes = self.error_byte_return()
+        return msgbytes
+
+
+    def cal(self, val=0):
+        # Work through the calibration process. 
+        # Requires physical interaction with the device
+        # usage: cal [load|open|short|thru|done|reset|on|off|in]
+        # example return: bytearray(b'')
+        
+        #explicitly allowed vals
+        accepted_vals = ['load','open','short','thru','done','reset','on','off']
+        #check input
+        if str(val) in accepted_vals:
+            writebyte = 'cal '+str(val)+'\r\n'
+            msgbytes = self.nanoVNA_serial(writebyte, printBool=False)  
+            if val == 'on' or val == 'off':
+                self.print_message("calibration is now " + str(val)) 
+            elif str(val) == 'reset':
+                self.print_message("calibration has been reset") 
+            elif str(val) == "done":
+                self.print_message("finished calibration signal sent") 
+            else:
+                self.print_message("calibration action: " + str(val)) 
+        else:
+            self.print_message("ERROR: cal() takes string args load|open|short|thru|done|reset|on|off")
+            msgbytes = self.error_byte_return()
+        return msgbytes
+    def cal_load(self):
+        return self.cal('load')
+    def cal_open(self):
+        return self.cal('open')
+    def cal_short(self):
+        return self.cal('short')
+    def cal_thru(self):
+        return self.cal('thru')
+    def cal_done(self):
+        return self.cal('done')
+    def cal_reset(self):
+        return self.cal('reset')
+    def cal_on(self):
+        return self.cal('on')
+    def cal_off(self):
+        return self.cal('of')
+
 
 
     def capture(self):
         # requests a screen dump to be sent in binary format 
-        # of 320x240 pixels of each 2 bytes
+        # 800*480 for NanoVNA-F V2 and V3 
         # usage: capture
         # example return: bytearray(b'\x00 ...\x00\x00\x00')
         writebyte = 'capture\r\n'
@@ -352,6 +405,7 @@ class nanoVNA():
         return msgbytes
     
     def capture_screen(self):
+        # alias function for capture
         return self.capture()
 
     def clear_config(self):
