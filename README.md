@@ -1317,7 +1317,6 @@ Quick Link Table:
 | [resume](#resume) | [save](#save) | [saveconfig](#saveconfig) | [scan](#scan) | [SN](#SN) | [sweep](#sweep) | [touchcal](#touchcal) |
 | [touchtest](#touchtest) | [trace](#trace) | [version](#version) |  |  |  |  |
 
-I've arranged all the commands alphabetically and distributed them evenly across the rows, filling empty cells at the end of the last row.
 
 ### **beep**
 * **Description:** Turn the beep on or off (but why would you want to turn it off?)
@@ -1329,6 +1328,7 @@ I've arranged all the commands alphabetically and distributed them evenly across
     * `beep_off()`
 * **CLI Wrapper Usage:**
 * **Notes:** 
+
 
 ### **cal**
 * **Description:** Work through the calibration process. Requores physical interaction with the device
@@ -1548,7 +1548,6 @@ I've arranged all the commands alphabetically and distributed them evenly across
     * 0.1 is 10% brightness, etc.
 
 
-
 ### **recall**
 * **Description:** Loads a previously stored calibration from the device
 * **Original Usage:** ` recall 0..4...6`
@@ -1584,6 +1583,7 @@ I've arranged all the commands alphabetically and distributed them evenly across
     *  Has not worked in testing on development DUT, but appears to work on some devices online.
     *  0 seconds stops the restarting process. 
 
+
 ### **resolution**
 * **Description:** Get the resolution of the LCD screen in pixels
 * **Original Usage:** `resolution`
@@ -1594,6 +1594,7 @@ I've arranged all the commands alphabetically and distributed them evenly across
     * `lcd_resolution()`
 * **CLI Wrapper Usage:**
 * **Notes:** 
+
 
 ### **resume**
 * **Description:** Resumes the sweep
@@ -1710,6 +1711,7 @@ TODO :update examples from tinySA
 * **CLI Wrapper Usage:**
 * **Notes:**  To save this, `saveconfig` must be used.
 
+
 ### **touchtest**
 * **Description:** starts the touch test. When this command is used, the screen can be drawn on to check responsiveness. 
 * **Original Usage:** `touchtest`
@@ -1719,6 +1721,7 @@ TODO :update examples from tinySA
     * `start_touch_test()`
 * **CLI Wrapper Usage:**
 * **Notes:**  There may be instructions on screen.
+
 
 ### **trace**
 * **Description:** displays all or one trace information or sets trace related information. INCOMPLETE due to how many combinations are possible.
