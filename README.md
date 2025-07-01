@@ -1302,7 +1302,7 @@ Library functions are organized based on the command passed to the device. For e
 This section is sorted by the tinySA (Ultra) commands, and includes:
 * A brief description of what the command does
 * What the original usage looked like
-* The tinySA_python function call, or calls if multiple options exist 
+* The nanoVNA_python function call, or calls if multiple options exist 
 * Example return, or example format of return
 * Any additional notes about the usage
 
@@ -1311,15 +1311,13 @@ All of the listed commands are included in this API to some degree, but error ch
 Quick Link Table:
 |  |   |     |   |       |      |      |
 |-------|-------|-------|-------|-------|-------|-------|
-| [capture](#capture) | [clearconfig](#clearconfig)  | [data](#data) |[frequencies](#frequencies)  | [help](#help)    |  [info](#info)       |  [marker](#marker)   |
-|[pause](#pause)  |[recall](#recall)  |  [reset](#reset)    |[restart](#restart)   | [resume](#resume) | [scan](#scan)        | [save](#save)   |
-|[saveconfig](#saveconfig)  |    | [sweep](#sweep)       | [touchcal](#touchcal)    |[touchtest](#touchtest)  | [trace](#trace)  | [version](#version)   |
-| [beep](#beep) | [resolution](#resolution)|  [LCD_ID](#LCD_ID)        |  [cal](#cal)   |  [lcd](#lcd)    |   |  |
-|[cwfreq](#cwfreq)  | [SN](#SN) |  [edelay](#edelay)  | [port](#port)     | [pwm](#pwm)        |    |         |
+| [beep](#beep) | [cal](#cal) | [capture](#capture) | [clearconfig](#clearconfig) | [cwfreq](#cwfreq) | [data](#data) | [edelay](#edelay) |
+| [frequencies](#frequencies) | [help](#help) | [info](#info) | [LCD](#LCD) | [LCD_ID](#LCD_ID) | [lcd](#lcd) | [marker](#marker) |
+| [pause](#pause) | [port](#port) | [pwm](#pwm) | [recall](#recall) | [reset](#reset) | [resolution](#resolution) | [restart](#restart) |
+| [resume](#resume) | [save](#save) | [saveconfig](#saveconfig) | [scan](#scan) | [SN](#SN) | [sweep](#sweep) | [touchcal](#touchcal) |
+| [touchtest](#touchtest) | [trace](#trace) | [version](#version) |  |  |  |  |
 
-
-
-
+I've arranged all the commands alphabetically and distributed them evenly across the rows, filling empty cells at the end of the last row.
 
 ### **beep**
 * **Description:** Turn the beep on or off (but why would you want to turn it off?)
@@ -1487,7 +1485,7 @@ Quick Link Table:
 * **Notes:** 
 
 
-### **LCD**
+### **lcd**
 * **Description:** Draw rectangles on the screen
 * **Original Usage:** `lcd {X} {Y} {WIDTH} {HEIGHT} {FFFF}`
 * **Direct Library Function Call:** `lcd()`
@@ -1618,6 +1616,7 @@ Quick Link Table:
 * **CLI Wrapper Usage:**
 * **Notes:**  where 0 is the startup preset. No arguments prints the frequency range of the save results.
 
+
 ### **saveconfig**
 * **Description:** Saves the device configuration data. This includes language and touch calibration. 
 * **Original Usage:** `saveconfig`
@@ -1682,7 +1681,6 @@ TODO :update examples from tinySA
 * **Original Usage:** 
     * `sweep {start(Hz)} {stop(Hz)} {points}`
     *  `sweep {start|stop|center|span|cw|points} {freq(Hz)}`
-
 * **Direct Library Function Call:** `config_sweep(argName=start|stop|center|span|cw, val=Int|Float)` AND `preform_sweep(start, stop, pts)`
 * **Example Return:** 
     * empty bytearray `b''`
