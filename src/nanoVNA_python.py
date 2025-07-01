@@ -393,7 +393,6 @@ class nanoVNA():
         return self.cal('of')
 
 
-
     def capture(self):
         # requests a screen dump to be sent in binary format 
         # 800*480 for NanoVNA-F V2 and V3 
@@ -437,18 +436,19 @@ class nanoVNA():
     def cwfreq(self, val):
         # Set the continious wave (CW) frequency
         # usage: cwfreq {freq in Hz}
-        # example return:
+        # example return: bytearray(b'')
         
+        try:
+            int(val)
+        except:
+            self.print_message("ERROR: cwfreq requires an Int value")
+            return self.error_byte_return()
         if (isinstance(val,int)):
             writebyte = 'cwfreq' + str(val) + '\r\n'
             msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
             self.print_message("setting CW frequency to " +str(val))
-        else:
-            self.print_message("ERROR: cwfreq requires an Int")
-            msgbytes = self.error_byte_return()
-
-        return msgbytes
-
+            return msgbytes
+        
     def set_cwfreq(self, val):
         # alias for cwfreq
         return self.cwfreq(val)
@@ -456,26 +456,84 @@ class nanoVNA():
 
     def data(self, val=0):
         # dumps the trace data. 
-        # usage: data [0-2]
+        # usage: data [0-6]
         # example return: bytearray(b'-8.671875e+01\r\n... -8.337500e+01\r\n-8.237500e+01\r')
         
         #explicitly allowed vals
-        accepted_vals = [0,1,2]
+        accepted_vals = [0,1,2,3,4,5,6]
         #check input
         if val in accepted_vals:
             writebyte = 'data '+str(val)+'\r\n'
             msgbytes = self.nanoVNA_serial(writebyte, printBool=False)  
             if val == 0:
-                self.print_message("returning temp value data") 
+                self.print_message("returning S11 data") 
             elif val == 1:
-                self.print_message("returning stored trace data") 
+                self.print_message("returning S21 data") 
             elif val == 2:
-                self.print_message("returning measurement data") 
+                self.print_message("returning load calibration data") 
+            elif val == 3:
+                self.print_message("returning open calibration data") 
+            elif val == 4:
+                self.print_message("returning short calibration data") 
+            elif val == 5:
+                self.print_message("returning thru calibration data") 
+            elif val == 6:
+                self.print_message("returning isolation calibration data") 
         else:
-            self.print_message("ERROR: data() takes vals [0-2]")
+            self.print_message("ERROR: data() takes Integer vals [0-6]")
             msgbytes = self.error_byte_return()
         return msgbytes
     
+    def get_s11_data(self):
+        # alias for data()
+        return self.data(val=0)
+    def get_s21_data(self):
+        # alias for data()
+        return self.data(val=1)
+    def get_load_cal_data(self):
+        # alias for data()
+        return self.data(val=2)
+    def get_open_cal_data(self):
+        # alias for data()
+        return self.data(val=3)    
+    def get_short_cal_data(self):
+        # alias for data()
+        return self.data(val=4)
+    def get_thru_cal_data(self):
+        # alias for data()
+        return self.data(val=5)
+    def get_isolation_cal_data(self):
+        # alias for data()
+        return self.data(val=6)
+
+    def edelay(self, val=None):
+        # gets the frequencies used by the last sweep
+        # usage: frequencies
+        # example return: bytearray(b'1500000000\r\n... \r\n3000000000\r')
+
+        if val == None:
+            writebyte = 'edelay\r\n'
+            msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+            self.print_message("getting the current edelay")
+        else:
+            try:
+                float(val)
+            except:
+                self.print_message("ERROR: the edelay value must be an Integer or Float")
+                msgbytes = self.error_byte_return()
+                return msgbytes
+
+            writebyte = 'edelay ' + str(val) + '\r\n'
+            msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+            self.print_message("setting the edlay value to " + str(val))
+            return msgbytes
+
+    def get_edelay(self):
+        # alias for edelay()
+        return self.edelay()
+    def set_edelay(self, val):
+        # alias for edelay()
+        return self.edelay(val)
 
     def frequencies(self):
         # gets the frequencies used by the last sweep
@@ -506,6 +564,29 @@ class nanoVNA():
     def get_info(self):
         # alias for info()
         return self.info()
+
+
+    def lcd(self, X, Y, W, H, COL):
+        # displays various SW and HW information
+        # usage: info
+        # example return: bytearray(b'tinySA ...\r')
+
+        # check that X & Y are larger than 0 & ints.
+
+        # check that W and H are ints. 
+
+
+        # Check color. 
+
+        writebyte = 'lcd ' + str(X) + ' ' + str(Y) + ' ' + str(W) + ' ' + str(H) + ' ' + str(COL) + '\r\n'
+        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+        self.print_message("drawing a rectangle on the screen")
+        return msgbytes 
+    
+    def get_LCD_ID(self):
+        # alias for LCD_ID()
+        return self.LCD_ID()
+
 
 
     def LCD_ID(self):

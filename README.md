@@ -1364,15 +1364,16 @@ Quick Link Table:
     * `cal_off()` - stop messing with calibration being applied to device
 * **CLI Wrapper Usage:**
 * **Notes:**  
-    * `cal` no argument gets the calibration status
-    * `cal load` calibrate with the load connector. Hardware must be attached before calibration
-    * `cal open` calibrate with the open connector. Hardware must be attached before calibration
-    * `cal short` calibrate with the open connector. Hardware must be attached before calibration
-    * `cal thru` calibrate with cable connected to both ports. Hardware must be attached before calibration
-    * `cal done` complete the calibration
-    * `cal reset` reset calibration data. Do this BEFORE calibrating
-    * `cal on` start measuring with calibration, apply it to device
-    * `cal off` stop measuring with calibration being applied to device
+    * `cal` - no argument gets the calibration status
+    * `cal load` - calibrate with the load connector. Hardware must be attached before calibration
+    * `cal open` - calibrate with the open connector. Hardware must be attached before calibration
+    * `cal short` - calibrate with the open connector. Hardware must be attached before calibration
+    * `cal thru` - calibrate with cable connected to both ports. Hardware must be attached before calibration
+    * `cal done` - complete the calibration
+    * `cal reset` - reset calibration data. Do this BEFORE calibrating
+    * `cal on` - start measuring with calibration, apply it to device
+    * `cal off` - stop measuring with calibration being applied to device
+    * `cal in` - this is in the documentation, but has no button on the NanoVNA-F V2. Might be a later feature. #TODO
 
 
 ### **capture**
@@ -1409,26 +1410,43 @@ Quick Link Table:
 
 
 ### **data**
-* **Description:** Gets the trace data
-* **Original Usage:** `data {0..1}` TODO: update
-* **Direct Library Function Call:** `data(val=None|0|1)`
+* **Description:** Gets the trace data for either S11 or S21, or the calibration.
+* **Original Usage:** `data {0..6}` 
+* **Direct Library Function Call:** `data(val=None|0|1|2|3|4|5|6)`
 * **Example Return:** 
-` format bytearray(b'-0.086151 0.957274\r\n1.013057 -0.197761\r\n0.944041 -0.348532\r\n0.858225 -0....\r\n-0.588183 -0.481691\r\n-0.646600 -0.426130\r')`
+    * `data 0`: 
+    ` format bytearray(b'-0.086151 0.957274\r\n1.013057 -0.197761\r\n0.944041 -0.348532\r\n0.858225 -0....\r\n-0.588183 -0.481691\r\n-0.646600 -0.426130\r')`
+    * `data 7`: out of bounds. 
+    `bytearray(b'usage: data [array]\r')` 
 * **Alias Functions:**
+    * `get_s11_data()`
+    * `get_s21_data()`
+    * `get_load_cal_data()`
+    * `get_open_cal_data()`
+    * `get_short_cal_data()`
+    * `get_thru_cal_data()`
+    * `get_isolation_cal_data()`
 * **CLI Wrapper Usage:**
-* **Notes:**  S11 data is printed by default, but can be selected with input `0` for S11 and input `1` for S21
-       
+* **Notes:**  S11 data is printed by default, but can be selected with input `0` for S11 and input `1` for S21. Higher values are returns for the calibration, according to some documenation online (see references).
+    * `data 0` - S11
+    * `data 1` - S21
+    * `data 2` - cal load 
+    * `data 3` - cal open
+    * `data 4` - cal short
+    * `data 5` - cal thru
+    * `data 6` - cal isolation
+
 
 ### **edelay**
 * **Description:** electrical delay. This lets users compensate for time delay caused by components attached to the port, such as cables, adapters, etc.
 * **Original Usage:** `edelay id`
-* **Direct Library Function Call:** `edelay()`
+* **Direct Library Function Call:** `edelay(val=None|Int|Float)`
 * **Example Return:** empty bytearray
 * **Alias Functions:**
-    * `set_edelay()`
+    * `get_edelay()`
+    * `set_edelay(val=Int|Float)`
 * **CLI Wrapper Usage:**
-* **Notes:** 
-    * No params should get the current edelay value. If there is 1 parameter, the delay is in nanoseconds. 
+* **Notes:**  No params should get the current edelay value. If there is 1 parameter, the delay is in nanoseconds. 
 
 
 ### **frequencies**
