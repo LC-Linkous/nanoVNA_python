@@ -50,14 +50,19 @@ Working on it:
     * [Connecting and Disconnecting the Device](#connecting-and-disconnecting-the-device)
     * [Toggle Error Messages](#toggle-error-messages)
     * [Device and Library Help](#device-and-library-help)
-    * [Setting nanoVNA Parameters](#setting-nanovna-parameters)
+    * [Setting NanoVNA Parameters](#setting-nanovna-parameters)
     * [Getting Data from Active Screen](#getting-data-from-active-screen)
+    * [Analysis of the Returned Data from the NanoVNA](#analysis-of-the-returned-data-from-the-nanovna)
+        * [Types of Data Requests](#types-of-data-requests)
+        * [Getting S11](#getting-s11)
+        * [Getting S21](#getting-s21)
+        * [Real, Imaginary, Phase, Smith](#real-imaginary-phase-smith)
     * [Saving Screen Images](#saving-screen-images)
     * [Plotting Data with Matplotlib](#plotting-data-with-matplotlib)
-        * [Example 1: Plot using On-Screen Trace Data and Frequencies](#example-1-plot-using-on-screen-trace-data-and-frequencies)
-        * [Example 2: Plot using Scan Data and Frequencies](#example-2-plot-using-scan-data-and-frequencies)
-        * [Example 3: Plot a Waterfall using SCAN and Calculated Frequencies](#example-3-plot-a-waterfall-using-scan-and-calculated-frequencies)
-        * [Example 4: Plot a Realtime Waterfall](#example-4-plot-a-realtime-waterfall)
+        * [Example 1: Plot Trace Data](#example-1-plot-trace-data)
+        * [Example 2: Plot a Static Waterfall using SCAN and Calculated Frequencies](#example-2-plot-a-static-waterfall-using-scan-and-calculated-frequencies)
+        * [Example 3: Plot a Realtime Waterfall using SCAN and Calculated Frequencies](#example-3-plot-a-realtime-waterfall-using-scan-and-calculated-frequencies)
+        * [Example 4: Plot the Active Screen Data](#example-4-plot-the-active-screen-data)
     * [Saving SCAN Data to CSV](#saving-scan-data-to-csv)
     * [Accessing the NanoVNA Directly](#accessing-the-nanovna-directly)
 * [List of nanoVNA Commands and their Library Commands](#list-of-nanoVNA-commands-and-their-library-commands)
@@ -335,7 +340,7 @@ nvna.help()
 
 The `help` command returns bytearray in the format `bytearray(b'commands:......')`
 
-### Setting tinySA Parameters
+### Setting NanoVNA Parameters
 TODO when error checking is complete to show multiple examples
 
 ```python
@@ -357,6 +362,7 @@ TODO - updating the library with commands first
 
 ### Analysis of the Returned Data from the NanoVNA
 
+#### Types of Data Requests
 
 This example shows several types of common data requests:
 
@@ -365,6 +371,14 @@ TODO - updating the library with commands first
 
 
 ```
+
+#### Getting S11
+
+#### Getting S21
+
+#### Real, Imaginary, Phase, Smith
+
+
 
 
 ### Saving Screen Images
@@ -1140,6 +1154,9 @@ if __name__ == "__main__":
 </p>
    <p align="center">Waterfall Plot for SCAN Data in Realtime</p>
 
+#### Example 4: Plot the Active Screen Data
+
+ TODO
 
 
 
@@ -1870,6 +1887,10 @@ This library is updated in spurts. June-August are going to be the most active d
 ## References
  
 The original documentation for this project comes from the related [tinySA_python](https://github.com/LC-Linkous/tinySA_python) library. That library was taken and applied to the NanoVNA to get a baseline of what commands were shared, and what might be new (to the library) for the NanoVNA. 
+
+
+* PDF (link to download from hosting website) download found late in the documentation process, but has been a valuable (cross)reference:
+    * https://www.sysjoint.com/ueditor/php/upload/file/PDF/NanoVNA-F%20V3%20Portable%20Vector%20Network%20Analyzer%20User%20Guide%20V1.0.pdf
 
 
 * [tinySA HomePage](https://tinysa.org/wiki/)  https://www.tinysa.org/wiki/
