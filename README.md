@@ -9,7 +9,7 @@ A Non-GUI Python API class for the NanoVNA series of devices. This repository us
 
 
 There also exists several officially recognized resources:
-* [NanoVNA-App](https://nanovna.com/?page_id=141), download avilable on official page
+* [NanoVNA-App](https://nanovna.com/?page_id=141), download available on official page
     * With development at [https://github.com/OneOfEleven/NanoVNA-App](https://github.com/OneOfEleven/NanoVNA-App)   
 * [NanoVNA-Saver](https://nanovna.com/?page_id=90)
     * With releases and download at [https://github.com/NanoVNA-Saver/nanovna-saver/releases](https://github.com/NanoVNA-Saver/nanovna-saver/releases)
@@ -17,10 +17,10 @@ There also exists several officially recognized resources:
     * Works from https://cho45.stfuawsc.com/NanoVNA/ using the latest version of chrome browser, and as an Android .apk
 
 
-This library, `nanoVNA_python`, is a non-GUI based library with access to low-level interfacing. It has been written as a companiion to the [tinySA_python library](https://github.com/LC-Linkous/tinySA_python). Even though there is a lot os similarities between teh devices, the libraries are key seperate in order to make it clear which examples, tips, and documetnation go to which device. 
+This library, `nanoVNA_python`, is a non-GUI based library with access to low-level interfacing. It has been written as a companion to the [tinySA_python library](https://github.com/LC-Linkous/tinySA_python). Even though there is a lot of similarities between the devices, the library GitHub repositories are separate in order to make it clear which examples, tips, and documentation go to which device. 
 
 
-This library covers most documented commands for the NanoVNA device series. The documentation is sorted based on the serial command, with some provided usage examples. While some error checking exists in both the device and the library, it is not exhaustive. It is strongly suggested to read the official documentation before attempting to script with your device.
+This library covers most of the documented commands for the NanoVNA device series. The documentation is sorted based on the serial command, with some provided usage examples. While some error checking exists in both the device and the library, it is not exhaustive. It is strongly suggested to read the official documentation before attempting to script with your device.
 
 
 Done:
@@ -65,7 +65,7 @@ Working on it:
         * [Example 4: Plot the Active Screen Data](#example-4-plot-the-active-screen-data)
     * [Saving SCAN Data to CSV](#saving-scan-data-to-csv)
     * [Accessing the NanoVNA Directly](#accessing-the-nanovna-directly)
-* [List of nanoVNA Commands and their Library Commands](#list-of-nanoVNA-commands-and-their-library-commands)
+* [List of NanoVNA Commands and their Library Commands](#list-of-nanoVNA-commands-and-their-library-commands)
 * [List of Commands Removed from Library](#list-of-commands-removed-from-library)
 * [Additional Library Functions for Advanced Use](#additional-library-functions-for-advanced-use)
 * [Notes for Beginners](#notes-for-beginners)
@@ -78,7 +78,7 @@ Working on it:
 
 ## The NanoVNA Series of Devices
 
-The [NanoVNA line of devices](https://nanovna.com/?page_id=21) are a series of portable and pretty user-friendly vector network analyzer devices. There are several devices with different frequency ranges, so refer to [official documentation](https://nanovna.com/?page_id=21) to select one for your needs. There are also some very convincing knock-off devices, so ensure that you are purchasing an actual device from a [reuptable vendor](https://nanovna.com/?page_id=121). 
+The [NanoVNA line of devices](https://nanovna.com/?page_id=21) are a series of portable and pretty user-friendly vector network analyzer devices. There are several devices with different frequency ranges, so refer to [official documentation](https://nanovna.com/?page_id=21) to select one for your needs. There are also some very convincing knock-off devices, so ensure that you are purchasing an actual device from a [reputable vendor](https://nanovna.com/?page_id=121). 
 
 This device is often compared to the [tinySA series of devices][https://tinysa.org/](https://tinysa.org/). The NanoVNA series is a handheld vector network analyzer (VNA), which measures the S-parameters (loosely: a type of response of a device or antenna) over at different frequencies, while a spectrum analyzer measures the amplitude of RF signals at different frequencies. There's a lot of overlap with the use of both devices, but the measurements are very different. A signal generator (one of the features of the tinySA) is exactly what it sounds like - it generates a signal at a specific frequency or frequencies at a specified power level.
 
@@ -102,7 +102,7 @@ pandas
 
 ```
 
-The above dependencies are only for the API interfacing of the tinySA_python library. Additional dependencies should be installed if you are following the examples in this README. These can be installed with 'pip install -r test_requirements.txt':
+The above dependencies are only for the API interfacing of the nanoSA_python library. Additional dependencies should be installed if you are following the examples in this README. These can be installed with 'pip install -r test_requirements.txt':
 
 ```python
 pyserial
@@ -125,7 +125,7 @@ pip install pyserial numpy pandas matplotlib pillow pyQt5
 
 ## Library Usage
 
-This library is currently only available as the nanoVNA class in 'nanoVNA_python.py' in this repository. It is very much under development and missing some key error checking and handling. HOWEVER, ‘any’ error checking is currently more than the ‘no’ error checking provided by interfacing directly with the device. The code that is included in this repository has been tested on at least one nanoVNA device and is relatively stable. 
+This library is currently only available as the NanoVNA class in 'nanoVNA_python.py' in this repository. It is very much under development and missing some key error checking and handling. HOWEVER, ‘any’ error checking is currently more than the ‘no’ error checking provided by interfacing directly with the device. The code that is included in this repository has been tested on at least one NanoVNA device and is relatively stable. 
 
 Several usage examples are provided in the [Example Implementations](#example-implementations) section, including working with the hardware and plotting results with matplotlib. 
 
@@ -143,13 +143,13 @@ This library was developed on Windows and has been lightly tested on Linux. The 
 
 ### Finding the Serial Port
 
-To start, a serial connection between the tinySA and user PC device must be created. There are several ways to list available serial ports. The library supports some rudimentary autodetection, but if that does not work instructions in this section also support manual detection. 
+To start, a serial connection between the NanoVNA and user PC device must be created. There are several ways to list available serial ports. The library supports some rudimentary autodetection, but if that does not work instructions in this section also support manual detection. 
 
 
 #### Autoconnection with the nanoVNA_python Library
 
 
-The nanoVNA_python currently has some autodetection capabilities, but these are new and not very complex. If multiple devices have the same VID, then the first one found is used. If you are connecting multiple devices to a user PC, then it is suggested to connect them manually (for now).
+The nanoVNA_python currently has some autodetection capabilities, but these are new and not very complex. If multiple devices have the same VID, then the first one found is used. If you are connecting multiple devices to a user PC, then it is suggested to connect them manually (for now). The NanoVNA and tinySA devices have the same VID and hardware identification for the serial ports.
 
 
 ```python
@@ -185,7 +185,7 @@ else:
 
 
 #### Manually Finding a Port on Windows
-1)  Open _Device Manager_, scroll down to _Ports (COM & LPT)_, and expand the menu. There should be a _COM#_ port listing "USB Serial Device(COM #)". If your tinySA Ultra is set up to work with Serial, this will be it.
+1)  Open _Device Manager_, scroll down to _Ports (COM & LPT)_, and expand the menu. There should be a _COM#_ port listing "USB Serial Device(COM #)". If your NanoVNA is set up to work with Serial, this will be it.
 
 2) This uses the pyserial library requirement already installed for this library. It probably also works on Linux systems, but has not been tested yet.
 
@@ -232,7 +232,7 @@ TO BE ADDED
 
 ```
 
-This method identified the `/dev/ttyACM0`. Now, when attempting to use the autoconnect feature, the following error was initially returned:
+This method identified the `/dev/ttyACM0`. Now, when attempting to use the autoconnection feature, the following error was initially returned:
 
 ```python
 [Errno 13] could not open port /dev/ttyACM0: [Errno 13] Permission denied: '/dev/ttyACM0'
@@ -246,7 +246,7 @@ This was due to not having permission to access the port. In this case, this err
 
 ### Serial Message Return Format
 
-This library returns strings as cleaned byte arrays. The command and first `\r\n` pair are removed from the front, and the `ch>` is removed from the end of the tinySA serial return.
+This library returns strings as cleaned byte arrays. The command and first `\r\n` pair are removed from the front, and the `ch>` is removed from the end of the NanoVNA serial return.
 
 The original message format:
 
@@ -579,7 +579,7 @@ else: # if port found and connected, then complete task(s) and disconnect
     
     # processing after disconnect
     # This is typical for the examples, but does not need to be done
-    # if you are sitll using the device or collecting data.
+    # if you are still using the device or collecting data.
 
 
     # convert data to arrays
@@ -648,7 +648,7 @@ else: # if port found and connected, then complete task(s) and disconnect
 
 #### **Example 2: Plot a Static Waterfall using SCAN and Calculated Frequencies**
 
-This example uses the `scan()` read to get the data over a specified number of reads and then display it in the four plots described in Example 1, above. Data is exproted to a specified .csv for logging. The scan can be interrupted at any time interupting the program in the terminal (typicaly ctrl + C).
+This example uses the `scan()` read to get the data over a specified number of reads and then display it in the four plots described in Example 1, above. Data is exported to a specified .csv for logging. The scan can be interrupted at any time in the terminal (typically ctrl + C).
 
 ```python
 
@@ -889,7 +889,7 @@ else: # if port found and connected, then complete task(s) and disconnect
 
 #### **Example 3: Plot a Realtime Waterfall using SCAN and Calculated Frequencies**
 
-This example uses the `scan()` read to get the data direcly from the NanoVNA device. After each read, the four plots on the `matplotlib` figure are updated. The scan can be interrupted at any time by closing the figure window.
+This example uses the `scan()` read to get the data directly from the NanoVNA device. After each read, the four plots on the `matplotlib` figure are updated. The scan can be interrupted at any time by closing the figure window.
 
 ```python
 # import nanoVNA library
@@ -1263,7 +1263,7 @@ else:
 
 ### Accessing the NanoVNA Directly
 
-In some cases, this library may not cover all possible command versions, or new features might not be included yet. The tinySA can be accessed directly using the `command()` function. There is NO ERROR CHECKING on this function. It takes the full argument, just as if arguments were entered on the command line. 
+In some cases, this library may not cover all possible command versions, or new features might not be included yet. The NanoVNA can be accessed directly using the `command()` function. There is NO ERROR CHECKING on this function. It takes the full argument, just as if arguments were entered on the command line. 
 
 ```python
 
@@ -1316,7 +1316,7 @@ else: # if port found and connected, then complete task(s) and disconnect
 
 Library functions are organized based on the command passed to the device. For example, any functions with shortcuts for using the `sweep` command will be grouped under `sweep`. This list and the following list in the [Additional Library Commands](#additional-library-commands) section describe the functions in this library. 
 
-This section is sorted by the tinySA (Ultra) commands, and includes:
+This section is sorted by the NanoVNA commands, and includes:
 * A brief description of what the command does
 * What the original usage looked like
 * The nanoVNA_python function call, or calls if multiple options exist 
@@ -1348,7 +1348,7 @@ Quick Link Table:
 
 
 ### **cal**
-* **Description:** Work through the calibration process. Requores physical interaction with the device
+* **Description:** Work through the calibration process. Requires physical interaction with the device
 * **Original Usage:** `cal [load|open|short|thru|done|reset|on|off|in]`
 * **Direct Library Function Call:** `cal(val=load|open|short|thru|done|reset|on|off|in)`
 * **Example Return:** ``
@@ -1359,20 +1359,20 @@ Quick Link Table:
     * `cal_thru()` - calibrate with cable connected to both ports
     * `cal_done()` - done with calibration
     * `cal_reset()` - reset calibration data. Do this BEFORE calibrating
-    * `cal_on()`  - start measuing with calibration, apply it to device
-    * `cal_off()` - stop measuing with calibration being applied to device
+    * `cal_on()`  - start measuring with calibration, apply it to device
+    * `cal_off()` - stop messing with calibration being applied to device
     * `cal_in()` - internal calibration (?? TODO)
 * **CLI Wrapper Usage:**
 * **Notes:**  
     * `cal` no argument gets the calibration status
-    * `cal load` calibrate with the load connector. Hardware must be attatched before calibration
-    * `cal open` calibrate with the open connector. Hardware must be attatched before calibration
-    * `cal short` calibrate with the open connector. Hardware must be attatched before calibration
-    * `cal thru` calibrate with cable connected to both ports. Hardware must be attatched before calibration
+    * `cal load` calibrate with the load connector. Hardware must be attached before calibration
+    * `cal open` calibrate with the open connector. Hardware must be attached before calibration
+    * `cal short` calibrate with the open connector. Hardware must be attached before calibration
+    * `cal thru` calibrate with cable connected to both ports. Hardware must be attached before calibration
     * `cal done` complete the calibration
     * `cal reset` reset calibration data. Do this BEFORE calibrating
-    * `cal on` start measuing with calibration, apply it to device
-    * `cal off` stop measuing with calibration being applied to device
+    * `cal on` start measuring with calibration, apply it to device
+    * `cal off` stop measuring with calibration being applied to device
 
 
 ### **capture**
@@ -1398,7 +1398,7 @@ Quick Link Table:
 
 
 ### **cwfreq**
-* **Description:** Set the continious wave (CW) pluse frequency
+* **Description:** Set the continuous wave (CW) pulse frequency
 * **Original Usage:** `cwfreq {frequency in Hz}`
 * **Direct Library Function Call:** `cwfreq(val=Int|Freq in Hz)`
 * **Example Return:**  ``
@@ -1420,7 +1420,7 @@ Quick Link Table:
        
 
 ### **edelay**
-* **Description:** electrical delay. This lets users compensate for time delay caused by components attatched to the port, such as cables, adapters, etc.
+* **Description:** electrical delay. This lets users compensate for time delay caused by components attached to the port, such as cables, adapters, etc.
 * **Original Usage:** `edelay id`
 * **Direct Library Function Call:** `edelay()`
 * **Example Return:** empty bytearray
@@ -1428,7 +1428,7 @@ Quick Link Table:
     * `set_edelay()`
 * **CLI Wrapper Usage:**
 * **Notes:** 
-    * No params should get the curent edlay value. If there is 1 paramter, the delat is in nanoseconds. 
+    * No params should get the current edelay value. If there is 1 parameter, the delay is in nanoseconds. 
 
 
 ### **frequencies**
@@ -1486,7 +1486,7 @@ Quick Link Table:
     LCD_ID:              usage: LCD ID\r')   
 ```
 * **Alias Functions:**
-    * `tinySAHelp()`
+    * `NanoVNA_Help()`
 * **CLI Wrapper Usage:**
 * **Notes:**  
 
@@ -1523,7 +1523,7 @@ Quick Link Table:
     * `get_LCD_ID()`
 * **CLI Wrapper Usage:**
 * **Notes:** 
- * Had a little trouble finding this command. It is documetned in https://www.sysjoint.com/ueditor/php/upload/file/PDF/NanoVNA-F%20V3%20Portable%20Vector%20Network%20Analyzer%20User%20Guide%20V1.0.pdf
+ * Had a little trouble finding this command. It is documented in https://www.sysjoint.com/ueditor/php/upload/file/PDF/NanoVNA-F%20V3%20Portable%20Vector%20Network%20Analyzer%20User%20Guide%20V1.0.pdf
 
 
 
@@ -1554,7 +1554,7 @@ Quick Link Table:
 
 
 ### **pwm**
-* **Description:** Adjustes the pwm of the screen. This is screen brightness
+* **Description:** Adjusts the PWM of the screen. This is screen brightness in this application.
 * **Original Usage:** `pwm`
 * **Direct Library Function Call:** `pwm(val=Float|0.0-1.0)`
 * **Example Return:** empty bytearray
@@ -1695,7 +1695,7 @@ TODO :update examples from tinySA
 
 
 ### **sweep**
-* **Description:** Set sweep momde, frequency and points
+* **Description:** Set sweep mode, frequency and points
 * **Original Usage:** 
     * `sweep {start(Hz)} {stop(Hz)} {points}`
     *  `sweep {start|stop|center|span|cw|points} {freq(Hz)}`
@@ -1781,7 +1781,7 @@ TODO :update examples from tinySA
 ## Additional Library Functions for Advanced Use
 
 ### **command**
-* **Description:** override library functions to run commands on the tinySA device directly. 
+* **Description:** override library functions to run commands on the NanoVNA device directly. 
 * **Original Usage:** None. 
 * **Direct Library Function Call:** `command(val=Str)`
 * **Example Usage:**:
@@ -1795,7 +1795,7 @@ TODO :update examples from tinySA
 * **Alias Functions:**
     * None
 * **CLI Wrapper Usage:**
-* **Notes:** If unfamiliar with device and operation, DO NOT USE THIS. There is no error checking and you will be interfacing with the tinySA device directly.
+* **Notes:** If unfamiliar with device and operation, DO NOT USE THIS. There is no error checking and you will be interfacing with the NanoVNA device directly.
 
 
 ## Notes for Beginners
@@ -1803,6 +1803,7 @@ TODO :update examples from tinySA
 This is a brief section for anyone that might have jumped in with a bit too much ambition. It is highly suggested to _read the manual_. 
 
 Very useful, important documentation can be found at:
+TODO:
 
 * The [tinySA wiki](https://tinysa.org/wiki/pmwiki.php)
 * The getting started [first use](https://tinysa.org/wiki/pmwiki.php?n=Main.FirstUse) page
@@ -1839,7 +1840,7 @@ aka “what am I looking at and did I buy the right thing?”
 
 **tinySA Vs. NanoVNA **: The tinySA and NanoVNA look a lot alike, and have some similar code, but they are NOT the same device. They are designed to measure different things. The tinySA is a spectrum analyzer (SA) while the NanoVNA is a vector network analyzer (VNA). Both have signal generation capabilities (to an extent, as OUTPUT), but the tinySA (currently) has expanded features for generating signals. This library was made for the NanoVNA line of devices. There is some overlap with the tinySA, but there is a seperate library for that device at [tinySA_python](https://github.com/LC-Linkous/tinySA_python).
 
-**SA** - This one is contect dependent. SA can mean either 'Spectrum Analyzer' (multiple frequencies) or 'Signal Analyzer' (single frequency). In the case of the tinySA it is 'Spectrum Analyzer' because multiple frequencies are being measured. A spectrum analyzer measures the magnitude of an external input signal vs frequency. It shows signal as a spectrum. The signal source does not need to be directly, physically connected to the SA, which allows for analysis of the wireless spectrum. This is the primary functionality of the tinySA, but it does have other features (such as signal generation). 
+**SA** - This one is context dependent. SA can mean either 'Spectrum Analyzer' (multiple frequencies) or 'Signal Analyzer' (single frequency). In the case of the tinySA it is 'Spectrum Analyzer' because multiple frequencies are being measured. A spectrum analyzer measures the magnitude of an external input signal vs frequency. It shows signal as a spectrum. The signal source does not need to be directly, physically connected to the SA, which allows for analysis of the wireless spectrum. This is the primary functionality of the tinySA, but it does have other features (such as signal generation). 
 
 **VNA** – a vector network analyzer (VNA) measures parameters such as s-parameters, impedance and reflection coefficient of a radio frequency (RF) device under test (DUT). A VNA is used to characterize the transmission and reflection properties of the DUT by generating a stimulus signal and then measuring the device's response. This can be used to characterize and measure the behavior of RF devices and individual components. 
     * ["What is a Vector Network Analyzer and How Does it Work?" - Tektronix ](https://www.tek.com/en/documents/primer/what-vector-network-analyzer-and-how-does-it-work)
@@ -1877,7 +1878,7 @@ Right now, this library is set up as a class that can be added to a Python progr
 
 ### Will this be made into a REAL Python library I can import into my project?
 
-That's the plan! Right now, the core library is made of functions for directly interfacing with the nanoVNA series of devices. There are several examples in this README, which will be integrated into the core library as the error checking and features are stabilized. We're probably 3-6 months of development and testing away from an official release or library creation.
+That's the plan! Right now, the core library is made of functions for directly interfacing with the NanoVNA series of devices. There are several examples in this README, which will be integrated into the core library as the error checking and features are stabilized. We're probably 3-6 months of development and testing away from an official release or library creation.
 
 ## How often is this library updated?
 
@@ -1926,11 +1927,11 @@ The original documentation for this project comes from the related [tinySA_pytho
 
 ## Licensing
 
-The code in this repository has been released under GPL-2.0 for right now (and to have something in place rather than nothing). This licensing does NOT take priority over the official releases and the decisions of the nanoVNA team. This licensing does NOT take priority for any of their products, including the devices that can be used with this software. 
+The code in this repository has been released under GPL-2.0 for right now (and to have something in place rather than nothing). This licensing does NOT take priority over the official releases and the decisions of the NanoVNA team. This licensing does NOT take priority for any of their products, including the devices that can be used with this software. 
 
 
 This software is released AS-IS, meaning that there may be bugs (especially as it is under development). 
 
 
-This software is UNOFFICIAL, meaning that the nanoVNA team does not offer tech support for it, does not maintain it, and has no responsibility for any of the contents. 
+This software is UNOFFICIAL, meaning that the NanoVNA team does not offer tech support for it, does not maintain it, and has no responsibility for any of the contents. 
 
