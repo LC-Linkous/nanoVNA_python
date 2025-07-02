@@ -41,19 +41,18 @@ class nanoVNA():
         self.returnErrorByte = False
 
 
-
         # VARS BELOW HERE will be largely replaced with device class config calls
         # # this will allow for user settings and device presets
 
-        #select device vars - hardcoding for the Ultra for now
+        #select device vars - hardcoding for NanoVNA-F V2
         # device params
-        self.maxPoints = 450
+        self.maxPoints = 200 # UP TO 201, but everything kicks back with 201
         # device ranges for err checking
-        self.minVNADeviceFreq = 100e3  #100 kHz
-        self.maxVNADeviceFreq = 3e9 #3 GHz for testing
+        self.minVNADeviceFreq = 50e3  #50 kHz
+        self.maxVNADeviceFreq = 5e9 #3 GHz for testing
         # screen 
-        self.screenWidth = 480
-        self.screenHeight = 320
+        self.screenWidth = 800
+        self.screenHeight = 480
 
 
 ######################################################################
@@ -629,7 +628,6 @@ class nanoVNA():
             writebyte = 'marker\r\n'
             msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
             self.print_message("returning active marker information")
-            msgbytes = self.error_byte_return()
             return msgbytes
 
         try:
@@ -641,32 +639,27 @@ class nanoVNA():
                         writebyte = 'marker ' + str(ID) +'\r\n'
                         msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
                         self.print_message("returning active marker information")
-                        msgbytes = self.error_byte_return()
 
                     else: # setting marker position to an int idx 
                         writebyte = 'marker ' + str(ID) + ' ' + str(idx) + +'\r\n'
                         msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
                         self.print_message("setting marker to point " + str(idx) + " (max 201)")
-                        msgbytes = self.error_byte_return()   
                 else:
                     # action being taken
                     if str(val) == "on":
                         writebyte = 'marker ' + str(ID) + ' ' + str(val) + +'\r\n'
                         msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
                         self.print_message("turning marker on")
-                        msgbytes = self.error_byte_return()
 
                     if str(val) == "off":
                         writebyte = 'marker ' + str(ID) + ' ' + str(val) + +'\r\n'
                         msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
                         self.print_message("turning marker off")
-                        msgbytes = self.error_byte_return()
 
                     elif str(val) == "peak":
                         writebyte = 'marker ' + str(ID) + ' ' + str(val) + +'\r\n'
                         msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
                         self.print_message("setting marker to highest value")
-                        msgbytes = self.error_byte_return()
 
                     else: # unrecognized val
                         self.print_message("ERROR: marker has actions on|off|peak")
@@ -824,27 +817,118 @@ class nanoVNA():
         self.print_message("save_config() called")
         return msgbytes
 
-    def scan(self, start, stop, pts=200, outmask=None):
-        # TODO
-        # Performs a scan and optionally outputs the measured data.
+    def scan(self, start, stop, pts=None, outmask=None):
+        # Scan with start, stop, point, and outmask values
         # usage: scan {start(Hz)} {stop(Hz)} [points] [outmask]
-            # where the outmask is a binary OR of:
-            # 1=frequencies, 2=measured data,
-            # 4=stored data and max points is device dependent
+        # {start} - required. Freq in Hz.
+        # {stop} - required. Freq in Hz
+        # points - required. integer number of sample points
+        # outmask - optional, control what data is returned.
+        #  * 0 = no printout
+        #  * 1 = frequency vals
+        #  * 2 = S11 of sweep points
+        #  * 3 = frequency values & S11 of sweep pts
+        #  * 4 = S21 of sweep pts
+        #  * 5 = frequency values and & S21 data of sweep pts
+        #  * 6 = S11 and S21 data of sweep points
+        #  * 7 = frequency values, S11 and S21 data of sweep points
 
-        if (0<=start) and (start < stop) and (pts <= self.maxPoints):
-            if outmask == None:
-                writebyte = 'scan '+str(start)+' '+str(stop)+' '+str(pts)+'\r\n'
-            else: 
-                 writebyte = 'scan '+str(start)+' '+str(stop)+' '+str(pts)+ ' '+str(outmask)+'\r\n'
-            msgbytes = self.nanoVNA_serial(writebyte, printBool=False)
-            self.print_message("scanning...")           
-        else:
-            self.print_message("ERROR: scan takes START STOP PTS OUTMASK as args. Check doc for format and limits")
+        # error check that start and stop are ints
+        try:
+            int(start)
+            int(stop)
+        except:
+            self.print_message("ERROR: Scan(). Device requires start and stop frequencies be integers")
             msgbytes = self.error_byte_return()
-        return msgbytes
+            return msgbytes
+        
+        #start must be LESS than stop
+        if int(start) >= int(stop):
+            self.print_message("ERROR: Scan(). Device requires start frequency be less than stop frequency")
+            msgbytes = self.error_byte_return()
+            return msgbytes            
+            # NOTE: device can handle having too many points for a range, there's an error message
+
+        # sweep with NO output
+        if (pts == None) and (outmask == None): 
+                writebyte = 'scan ' + str(start) + ' ' + str(stop) +'\r\n'
+                msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                self.print_message("scanning frequencies. no output.")
+                return msgbytes
+
+        try:
+            # try/except format in case non-numeric information used
+            if int(pts)>0: 
+                if int(outmask) in [0,1,2,3,4,5,6,7]:
+                    writebyte = 'scan ' + str(start) + ' ' + str(stop) + ' ' + str(pts) + ' ' + str(outmask) + '\r\n'
+                    msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                
+                    if outmask == 0: # no data returned
+                        self.print_message("scanning. no output.")
+                    elif outmask == 1:
+                        self.print_message("scanning. returning frequency values.")
+                    elif outmask == 2:
+                        self.print_message("scanning. returning S11 values")
+                    elif outmask == 3:
+                        self.print_message("scanning. returning frequency and S11 values.")
+                    elif outmask == 4:
+                        self.print_message("scanning. returning S21 values.")
+                    elif outmask == 5:
+                        self.print_message("scanning. returning frequency and S21 values.")
+                    elif outmask == 6:
+                        self.print_message("scanning. returning S11 and S21 values.")
+                    elif outmask == 7:
+                        self.print_message("scanning. returning frequency, S11, and S21 values.")
+                else:
+                    # not a known value for outmask
+                    self.print_message("ERROR: Scan(). outmask options are integers 0-7")
+                    msgbytes = self.error_byte_return()
+            else:
+                # points too low
+                self.print_message("ERROR: Scan(). More than 0 points must be used to return data in a scan")
+                msgbytes = self.error_byte_return()
+
+
+        except:
+            self.print_message("ERROR: Scan(). Invalid input. Check input parameters. refer to documentation for details")
+            msgbytes = self.error_byte_return()
+
+        return msgbytes 
+
     
- 
+    def scan_range(self, start, stop):
+        #alias function for scan()
+        return self.scan(start, stop, None, None)
+    
+    def get_scan_frequencies(self, start, stop, pts):
+        #alias function for scan()
+        return self.scan(start, stop, pts, 1)
+    
+    def get_scan_s11(self, start, stop, pts):
+        #alias function for scan()
+        return self.scan(start, stop, pts, 2)
+    
+    def get_scan_freqs_s11(self, start, stop, pts):
+        #alias function for scan()
+        return self.scan(start, stop, pts, 3)
+    
+    def get_scan_s21(self, start, stop, pts):
+        #alias function for scan()
+        return self.scan(start, stop, pts, 4)
+    
+    def get_scan_freqs_s21(self, start, stop, pts):
+        #alias function for scan()
+        return self.scan(start, stop, pts, 5)
+    
+    def get_scan_s11_s21(self, start, stop, pts):
+        #alias function for scan()
+        return self.scan(start, stop, pts, 6)
+    
+    def get_scan_freqs_s11_s21(self, start, stop, pts):
+        #alias function for scan()
+        return self.scan(start, stop, pts, 7)    
+
+
     def SN(self):
         # get the unique serial number of the NanoVNA
         # usage: SN

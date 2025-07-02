@@ -24,12 +24,12 @@ This library covers most of the documented commands for the NanoVNA device serie
 
 
 Done:
-* examples for basic functionality 
+* examples for common use and functionality 
 * some Debian-flavored Linux testing
 
 Working on it:
 * documentation for original command usage and library functions
-    * Scan, Trace need updating + more error checking.
+    * Traces need updating + more error checking.
 * filling in unfinished args and any new NanoVNA features
 * An argparse option + some example scripts
 * Beginner notes, vocab, and some examples for common usage
@@ -1568,8 +1568,6 @@ Quick Link Table:
     * `marker_peak(ID=Int)`
     * `marker_on(ID=Int)`
     * `marker_off(ID=Int)`
-
-
 * **CLI Wrapper Usage:**
 * **Notes:**  
     * Marker indexes depend on what the device lists. 0 i
@@ -1688,24 +1686,39 @@ Quick Link Table:
 * **Original Usage:** `scan {start(Hz)} {stop(Hz)} [points] [outmask]`
 * **Direct Library Function Call:** `scan(start, stop, pts, outmask)`
 * **Example Return:** 
-TODO :update examples from tinySA
-    * Example arg: `scan 0 2e6 5 1`
-    * Results: `bytearray(b'0 \r\n1 \r\n1 \r\n2 \r\n2 \r')`
-    * Example arg: `scan 0 2e6 5 2`
-    * Results: `bytearray(b'5.843750e+00 0.000000000 \r\n5.343750e+00 0.000000000 \r\n4.843750e+00 0.000000000 \r\n4.843750e+00 0.000000000 \r\n4.843750e+00 0.000000000 \r')`
-    * Example arg: `scan 0 2e6 5 3`
-    * Results: `bytearray(b'0 5.375000e+00 0.000000000 \r\n1 5.875000e+00 0.000000000 \r\n1 5.375000e+00 0.000000000 \r\n2 5.375000e+00 0.000000000 \r\n2 5.375000e+00 0.000000000 \r')`
-    * Example arg: `scan 0 2e6 5 4`
-    * Results: `bytearray(b'5.343750e+00 0.000000000 \r\n5.843750e+00 0.000000000 \r\n5.843750e+00 0.000000000 \r\n5.343750e+00 0.000000000 \r\n5.843750e+00 0.000000000 \r')`
-
-
-    bytearray(b'sweep points exceeds range 51 -201\r')
-    bytearray(b'frequency range is invalid\r')
+    * `scan 1000000 2000000`
+        * No return. Sets the screen to scan between 1 MHz and 2 MHz. 
+    * `scan 1000000 2000000 200`
+        * `bytearray(b'')`. The outmask is `0` by default, so there's no printout.
+    * `scan 1000000 2000000 200 1`
+        * `bytearray(b'1000 \r\n1010 \r\n1020 \r\n1030 ... \r\n1980 \r\n1990 \r\n2000 ... \r\n0 \r'`
+        * The freuency points are returned, including a buffer of `\r\n0`
+        * Values are returned in `kHz`
+    * `scan 1000000 2000000 200 1`
+        * `bytearray(b'-1.134857 0.890570 \r\n-1.143237 0.889276... \r\n-1.411501 1.746581 \r\n-1.400607 1.754247 ... \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r')`
+        * The S11 data is complex, with real and imaginary values. The padding is also complex.
+    * `scan 1000000 2000000 200 3`
+        * `bytearray(b'1000 -1.124556 0.885832 \r\n1010 -1.133325 0.882054....\r\n0 0.000000 0.000000 \r\n0 0.000000 0.000000 \r')`
+        *  When the frequency and S11 are returned, the data is the `freq in KHz` and then the 2 parts of the complex signal. The `padding` is has  3 blank float values.
+    * `scan 1000000 2000000 200 7`
+        * `bytearray(b'1000 -1.133184 0.885893 -0.000045 -0.000008 \r\n....\r\n0 0.000000 0.000000 0.000000 0.000000 \r'))`
+        *  When the frequency, S11, and S21 are returned, the data is the `freq in KHz` and then the 2 parts of the EACH complex signal, 4 parts in total. The `padding` has 5 blank float values.
+    * Returns for invalid input:
+        * `bytearray(b'sweep points exceeds range 51 -201\r')`
+        * `bytearray(b'frequency range is invalid\r')`
 * **Alias Functions:**
-    * None, but see`plotting_scan.py` example
+    * `scan_range(start=Int, stop=Int)` - Scans. sets boundaries, does not return data 
+    * `get_scan_frequencies(start=Int, stop=Int, pts=Int)` - returns frequency data
+    * `get_scan_s11(start=Int, stop=Int, pts=Int)` - returns S11 data
+    * `get_scan_freqs_s11(start=Int, stop=Int, pts=Int)` - returns frequency and S11 data
+    * `get_scan_s21(start=Int, stop=Int, pts=Int)` - returns S21 data
+    * `get_scan_freqs_s21(start=Int, stop=Int, pts=Int)` - returns frequency and S21 data
+    * `get_scan_s11_s21(start=Int, stop=Int, pts=Int)` - returns S11 and S21 data
+    * `get_scan_freqs_s11_s21(start=Int, stop=Int, pts=Int)` - returns frequency, S11, and S21 data
 * **CLI Wrapper Usage:**
 * **Notes:**  
-    * `[points]` is the number of points in the scan. The MAX points is device dependent. Commonly, [11 to 201] or [50, 201], ends not inclusive.
+    * `start` and `stop` are required values of frequencies are in Hz. Frequency returns are in kHz.
+    * `[points]` is the number of points in the scan. The MAX points is device dependent. 201 is a common max, end not inclusive.
     * `[outmask]` 
      * 0 = no printout
      * 1 = frequency vals
