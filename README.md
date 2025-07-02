@@ -24,12 +24,12 @@ This library covers most of the documented commands for the NanoVNA device serie
 
 
 Done:
-* library commands for common args
-* documentation for original command usage and library functions
 * examples for basic functionality 
 * some Debian-flavored Linux testing
 
 Working on it:
+* documentation for original command usage and library functions
+    * Marker, Scan need updating + more error checking.
 * filling in unfinished args and any new NanoVNA features
 * An argparse option + some example scripts
 * Beginner notes, vocab, and some examples for common usage
@@ -1708,9 +1708,8 @@ TODO :update examples from tinySA
      * 7 = frequency values, S11 and S21 data of sweep points
     
 
-
 ### **SN**
-* **Description:** Get the SN (likely, serial number) of the NanoVNA.
+* **Description:** Get the unique serial number of the NanoVNA.
 * **Original Usage:** `SN`
 * **Direct Library Function Call:** `SN(None)`
 * **Example Return:** `bytearray(b'63507468C\r')` 
@@ -1765,7 +1764,7 @@ TODO :update examples from tinySA
 * **Alias Functions:**
     * `start_touch_test()`
 * **CLI Wrapper Usage:**
-* **Notes:**  There may be instructions on screen.
+* **Notes:**  There may be instructions on screen. Pause the screen first to see the marks made on the screen.
 
 
 ### **trace**

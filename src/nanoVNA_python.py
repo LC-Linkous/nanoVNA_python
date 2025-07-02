@@ -766,7 +766,8 @@ class nanoVNA():
         self.print_message("save_config() called")
         return msgbytes
 
-    def scan(self, start, stop, pts=250, outmask=None):
+    def scan(self, start, stop, pts=200, outmask=None):
+        # TODO
         # Performs a scan and optionally outputs the measured data.
         # usage: scan {start(Hz)} {stop(Hz)} [points] [outmask]
             # where the outmask is a binary OR of:
@@ -786,6 +787,20 @@ class nanoVNA():
         return msgbytes
     
  
+    def SN(self):
+        # get the unique serial number of the NanoVNA
+        # usage: SN
+        # example return: bytearray(b'##############\r')
+        writebyte = 'SN\r\n'
+        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+        self.print_message("returning the unique serial number of the device")
+        return msgbytes 
+    
+    def get_SN(self):
+        # alias for SN()
+        return self.SN()
+
+
     def config_sweep(self, argName=None, val=None): 
             # split call for SWEEP
             # Set sweep boundaries.
@@ -875,7 +890,8 @@ class nanoVNA():
 
 
     def touch_cal(self):
-        # starts the touch calibration
+        # starts the touch calibration. 
+        # Physical interaction with the device screen is required.
         # usage: touchcal
         # example return: bytearray(b'')
         writebyte = 'touchcal\r\n'
@@ -899,6 +915,8 @@ class nanoVNA():
     def start_touch_test(self):
         return self.touch_test()
 
+
+    # The TRACE functions are split to handle the broad functionality of this call
     def trace_select(self, ID):
         # split call for TRACE. select an available trace
         if (isinstance(ID, int)) and ID >=0:
