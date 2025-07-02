@@ -572,22 +572,29 @@ class nanoVNA():
         # example return: bytearray(b'tinySA ...\r')
 
         # check that X & Y are larger than 0 & ints.
+        if (isinstance(X, (int))) and (isinstance(Y, (int))) and (isinstance(W, (int))) and (isinstance(H, (int))) :
+            if X > 0 and Y > 0:
+                if len(COL) == 4: # might be a color. Try it. 
+                    writebyte = 'lcd ' + str(X) + ' ' + str(Y) + ' ' + str(W) + ' ' + str(H) + ' ' + str(COL) + '\r\n'
+                    msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                    self.print_message("drawing a rectangle on the screen")
+                else:
+                    self.print_message("ERROR: COl must be a 4 digit hex value as String between 0000 and FFFF")
+                    msgbytes = self.error_byte_return()
+            else:
+                # X and Y need to be positive (screen coords)
+                self.print_message("ERROR: X and Y are screen coords. The must be positive Ints")
+                msgbytes = self.error_byte_return()
+        else:
+            # X,Y,W,H must be ints
+            self.print_message("ERROR: X, Y, W, and H must be Integers")
+            msgbytes = self.error_byte_return()
 
-        # check that W and H are ints. 
+        return msgbytes
 
-
-        # Check color. 
-
-        writebyte = 'lcd ' + str(X) + ' ' + str(Y) + ' ' + str(W) + ' ' + str(H) + ' ' + str(COL) + '\r\n'
-        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-        self.print_message("drawing a rectangle on the screen")
-        return msgbytes 
-    
-    def get_LCD_ID(self):
-        # alias for LCD_ID()
-        return self.LCD_ID()
-
-
+    def draw_rect(self, X,Y,W,H,COL):
+        # alias for lcd()
+        return self.lcd(X,Y,W,H,COL)
 
     def LCD_ID(self):
         # displays various SW and HW information
@@ -605,6 +612,7 @@ class nanoVNA():
 
 
     def marker(self, ID, val):
+        # TODO
         # sets or dumps marker info.
         # where id=1..4 index=0..num_points-1
         # Marker levels will use the selected unit.
@@ -647,13 +655,38 @@ class nanoVNA():
         self.print_message("pausing NanoVNA device")
         return msgbytes 
 
+    def pwm(self, val):
+        # Adjusts the PWM of the screen. 
+        # This is screen brightness in this application.
+        # usage: pwm {0.0-1.0}
+        # example return: ''
+
+        try:
+            float(val)
+            if 0.0 <= float(val) <=1.0:
+                writebyte = 'pwm ' + str(val) +'\r\n'
+                msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                self.print_message("adjusting pwm value")
+            else:
+                self.print_message("ERROR: pwm values must be float vals 0.0-1.0")
+                msgbytes = self.error_byte_return()
+        except:
+            self.print_message("ERROR: pwm values must be float vals 0.0-1.0")
+            msgbytes = self.error_byte_return()
+        return msgbytes 
+
+    def set_screen_brightness(self, val):
+        # alias function for pwm
+        return self.pwm(val)
+
+
     def recall(self, val=0):
         # loads a previously stored preset,where 0 is the startup preset 
         # usage: recall [0-4]
         # example return: ''
 
         #explicitly allowed vals
-        accepted_vals =  [0,1,2,3,4]
+        accepted_vals =  [0,1,2,3,4,5,6]
         #check input
         if (val in accepted_vals):
             writebyte = 'recall '+str(val)+'\r\n'
@@ -694,7 +727,6 @@ class nanoVNA():
     def lcd_resolution(self):
         # alias function for resolution()
         return self.resolution() 
-
 
 
     def resume(self):

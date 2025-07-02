@@ -1389,7 +1389,7 @@ Quick Link Table:
 
 ### **clearconfig**
 * **Description:** Resets the configuration data to factory defaults
-* **Original Usage:** `clear config`
+* **Original Usage:** `clearconfig`
 * **Direct Library Function Call:** `clear_config()`
 * **Example Return:** `b'Config and all calibration data cleared. \r\n Do reset manually to take effect. Then do touch calibration and save.\r'`
 * **Alias Functions:**
@@ -1526,34 +1526,44 @@ Quick Link Table:
 * **Direct Library Function Call:** `lcd()`
 * **Example Return:** empty bytearray
 * **Alias Functions:**
-    * `draw_rect()`
+    * `draw_rect(X=Int, Y=Int, W=Int, H=Int, COL=4 digit hex)`
     * TODO
 * **CLI Wrapper Usage:**
-* **Notes:** 
+* **Notes:**  Pause the screen first, and then draw. When the screen refreshes, the rectangle will be erased from left to right.
 
 
 ### **LCD_ID**
 * **Description:** Get the ID of the LCD screen
-* **Original Usage:** `lcd X Y WIDTH HEIGHT FFFF`
-* **Direct Library Function Call:** `LCD()`
-* **Example Return:** ` `
+* **Original Usage:** `LCD_ID`
+* **Direct Library Function Call:** `LCD_ID()`
+* **Example Return:** `bytearray(b'118200\r')`
 * **Alias Functions:**
     * `get_LCD_ID()`
 * **CLI Wrapper Usage:**
 * **Notes:** 
- * Had a little trouble finding this command. It is documented in https://www.sysjoint.com/ueditor/php/upload/file/PDF/NanoVNA-F%20V3%20Portable%20Vector%20Network%20Analyzer%20User%20Guide%20V1.0.pdf
-
 
 
 ### **marker**
 * **Description:** sets or dumps marker info
-* **Original Usage:**  `usage: marker [n] [on|off|{index}]`
-* **Direct Library Function Call:** `marker(ID=Int|0..4, val="on"|"off")`
-* **Example Return:** empty bytearray
+* **Original Usage:**  
+    * `marker [n] [on|off|{index}]`
+    * `marker [n] [off|{index}]`
+    * `marker [n] peak`
+* **Direct Library Function Call:** `marker(ID=Int|1..4, val="on"|"off"|"peak", idx=None|Int)`
+* **Example Return:** 
+    * `marker` with no active markers:
+        * `bytearray(b'')`
+    * `marker 1 25` - marker 1, data reading point 25
+        * `bytearray(b'')`
+    * `marker 1` - information about location
+        * `bytearray(b'1 25 2940000\r')`
+    * `marker 1 peak` - moves marker 1 to peak
+        * `bytearray(b'')`
 * **Alias Functions:**
     * TODO. Also try 'peak' arg for a marker
 * **CLI Wrapper Usage:**
 * **Notes:**  
+    * Marker indexes depend on what the device lists. 0 i
     * `marker` no argument gets the attributes of the active markers.
     * `marker {ID=integer}` gets the attributes of that marker
     * The frequency must be within the selected sweep range mode.
@@ -1564,7 +1574,7 @@ Quick Link Table:
 * **Description:** Pauses the sweep
 * **Original Usage:** `pause`
 * **Direct Library Function Call:** `pause()`
-* **Example Return:** empty bytearray
+* **Example Return:** `bytearray(b'')`
 * **Alias Functions:**
     * None
 * **CLI Wrapper Usage:**
@@ -1575,9 +1585,9 @@ Quick Link Table:
 * **Description:** Adjusts the PWM of the screen. This is screen brightness in this application.
 * **Original Usage:** `pwm`
 * **Direct Library Function Call:** `pwm(val=Float|0.0-1.0)`
-* **Example Return:** empty bytearray
+* **Example Return:** `bytearray(b'')`
 * **Alias Functions:**
-    * TODO
+    * `set_screen_brightness(val=Float|0.0-1.0)`
 * **CLI Wrapper Usage:**
 * **Notes:** 
     * 0.1 is 10% brightness, etc.
@@ -1623,12 +1633,12 @@ Quick Link Table:
 * **Description:** Get the resolution of the LCD screen in pixels
 * **Original Usage:** `resolution`
 * **Direct Library Function Call:** `resolution()`
-* **Example Return:** empty bytearray
+* **Example Return:** `bytearray(b'800,480\r')`
 * **Alias Functions:**
     * `get_resolution()`
     * `lcd_resolution()`
 * **CLI Wrapper Usage:**
-* **Notes:** 
+* **Notes:** The screen resolution for the NanoVNA-F V2 and V3 is 800x480 pixels (width x height)
 
 
 ### **resume**
