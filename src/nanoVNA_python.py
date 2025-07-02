@@ -611,39 +611,97 @@ class nanoVNA():
         return self.LCD_ID()
 
 
-    def marker(self, ID, val):
-        # TODO
+    def marker(self, ID=None, val=None, idx=None):
         # sets or dumps marker info.
-        # where id=1..4 index=0..num_points-1
-        # Marker levels will use the selected unit.
-        # Marker peak will:
-        # 1) activate the marker (if not done already), 
-        # 2) position the marker on the strongest signal, and
-        # 3) display the marker info.
+        # Usage:
+        # * `marker [n] [on|off|{index}]`
+        # * `marker [n] [off|{index}]`
+        # * `marker [n] peak`
         # The frequency must be within the selected sweep range
-        # usage: marker {id} on|off|peak|{freq}|{index}
+        # usage: marker [ID=Int|1..4] [val=None|"on"|"off"|"peak"] [idx=None|Int]
         # example return: ''
 
-        #explicitly allowed vals
+        #explicitly allowed vals (hardcoded for readability)
+        accepted_IDs = [1,2,3,4]
         accepted_vals =  ["on", "off", "peak"]
         #check input
-        if ID == None: 
-            self.print_message("ERROR: marker() takes ID=Int|0..4")
+        if (ID == None) and (val == None) and (idx == None): 
+            writebyte = 'marker\r\n'
+            msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+            self.print_message("returning active marker information")
             msgbytes = self.error_byte_return()
             return msgbytes
 
-        if (str(val) in accepted_vals):
-            writebyte = 'marker ' + str(ID) + ' ' +str(val)+'\r\n'
-            msgbytes = self.nanoVNA_serial(writebyte, printBool=False)     
-            self.print_message("marker set to " + str(val))      
-        elif (isinstance(val, (int, float))): # or (isinstance(val, float)):  
-            writebyte = 'marker ' + str(ID) + ' ' +str(val)+'\r\n'
-            msgbytes = self.nanoVNA_serial(writebyte, printBool=False)     
-            self.print_message("marker set to " + str(val)) 
-        else:
-            self.print_message("ERROR: marker() takes ID=Int|0..4, and frequency or index in Int or Float")
+        try:
+            # ID first, then action, then follow up
+            if int(ID) in accepted_IDs:
+                if (val == None):
+                    if idx == None:
+                        # return current marker location
+                        writebyte = 'marker ' + str(ID) +'\r\n'
+                        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                        self.print_message("returning active marker information")
+                        msgbytes = self.error_byte_return()
+
+                    else: # setting marker position to an int idx 
+                        writebyte = 'marker ' + str(ID) + ' ' + str(idx) + +'\r\n'
+                        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                        self.print_message("setting marker to point " + str(idx) + " (max 201)")
+                        msgbytes = self.error_byte_return()   
+                else:
+                    # action being taken
+                    if str(val) == "on":
+                        writebyte = 'marker ' + str(ID) + ' ' + str(val) + +'\r\n'
+                        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                        self.print_message("turning marker on")
+                        msgbytes = self.error_byte_return()
+
+                    if str(val) == "off":
+                        writebyte = 'marker ' + str(ID) + ' ' + str(val) + +'\r\n'
+                        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                        self.print_message("turning marker off")
+                        msgbytes = self.error_byte_return()
+
+                    elif str(val) == "peak":
+                        writebyte = 'marker ' + str(ID) + ' ' + str(val) + +'\r\n'
+                        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                        self.print_message("setting marker to highest value")
+                        msgbytes = self.error_byte_return()
+
+                    else: # unrecognized val
+                        self.print_message("ERROR: marker has actions on|off|peak")
+                        msgbytes = self.error_byte_return()
+
+            else:
+                # not a valid marker ID value
+                self.print_message("ERROR: marker() takes no args, ID Int args, ID and action args. refer to documentation for details")
+                msgbytes = self.error_byte_return()
+      
+        except:
+            self.print_message("ERROR: marker() takes no args, ID Int args, ID and action args. refer to documentation for details")
             msgbytes = self.error_byte_return()
-        return msgbytes
+
+        return msgbytes 
+    
+    def get_all_marker_positions(self):
+        #alias function for marker()
+        return self.marker(None, None, None)
+    def get_marker_position(self, ID):
+        #alias function for marker()
+        return self.marker(ID, None, None)
+    def set_marker_position(self, ID, idx):
+         #alias function for marker()
+        return self.marker(ID, None, idx)
+    def marker_peak(self,ID):
+        #alias function for marker()
+        return self.marker(ID,'peak', None)
+    def marker_on(self,ID):
+        #alias function for marker()
+        return self.marker(ID,'on', None)
+    def marker_off(self,ID):
+        #alias function for marker()
+        return self.marker(ID,'off', None)
+
 
     def pause(self):
         # pauses the sweeping in either input or output mode
@@ -1086,7 +1144,6 @@ class nanoVNA():
 
 
     def version(self):
-        # TODO
         # displays the version text
         # usage: version
         # example return: tinySA4_v1.4-143-g864bb27\r\nHW Version:V0.4.5.1.1
@@ -1125,7 +1182,7 @@ class nanoVNA():
 ######################################################################
 
 if __name__ == "__main__":
-    # unit testing. not recomended to write program from here
+    # unit testing. not recomended to write prografm from here
 
     # create a new tinySA object    
     nvna = nanoVNA()
@@ -1135,32 +1192,18 @@ if __name__ == "__main__":
     # attempt to autoconnect
     found_bool, connected_bool = nvna.autoconnect()
 
-    """
-bytearray(b'trace {0|1|2|3|all} [logmag|phase|smith|linear|delay|swr|off] [src]\r')
-    """
-
-
     # if port open, then complete task(s) and disconnect
     if connected_bool == True: # or  if success == True:
         print("device connected")
         nvna.set_verbose(True) #detailed messages
         nvna.set_error_byte_return(True) #get explicit b'ERROR'
 
-        for cmd in ['marker auto 7' ]:
-            print("##########################################################################")
-            try:
-                print("calling:: " + str(cmd) )
-                msg = nvna.command(cmd)
-                print(msg)
-            except:
-                print("No command " + str(cmd))
 
+        msg = nvna.help()
+        print(msg)
 
-        # msg = nvna.nanoVNA_help()
-        # print(msg)
-
-        # msg = nvna.get_device_id() 
-        # print(msg)
+        msg = nvna.get_info() 
+        print(msg)
         
 
         nvna.disconnect()

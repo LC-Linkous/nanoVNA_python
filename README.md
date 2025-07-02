@@ -29,7 +29,7 @@ Done:
 
 Working on it:
 * documentation for original command usage and library functions
-    * Marker, Scan, Trace need updating + more error checking.
+    * Scan, Trace need updating + more error checking.
 * filling in unfinished args and any new NanoVNA features
 * An argparse option + some example scripts
 * Beginner notes, vocab, and some examples for common usage
@@ -68,6 +68,7 @@ Working on it:
 * [List of NanoVNA Commands and their Library Commands](#list-of-nanoVNA-commands-and-their-library-commands)
 * [List of Commands Removed from Library](#list-of-commands-removed-from-library)
 * [Additional Library Functions for Advanced Use](#additional-library-functions-for-advanced-use)
+* [Unrecognized Commands that Appear in Documentation](#unrecognized-commands-that-appear-in-documentation)
 * [Notes for Beginners](#notes-for-beginners)
     * [Vocab Check](#vocab-check)
     * [Calibration Setup](#calibration-setup)
@@ -1552,7 +1553,8 @@ Quick Link Table:
 * **Direct Library Function Call:** `marker(ID=Int|1..4, val="on"|"off"|"peak", idx=None|Int)`
 * **Example Return:** 
     * `marker` with no active markers:
-        * `bytearray(b'')`
+        * `bytearray(b'')` - no active markers
+        * `bytearray(b'1 0 50\r\n2 40 0\r')` - 2 active markers
     * `marker 1 25` - marker 1, data reading point 25
         * `bytearray(b'')`
     * `marker 1` - information about location
@@ -1560,7 +1562,14 @@ Quick Link Table:
     * `marker 1 peak` - moves marker 1 to peak
         * `bytearray(b'')`
 * **Alias Functions:**
-    * TODO. Also try 'peak' arg for a marker
+    * `get_all_marker_positions()`
+    * `get_marker_position(ID=Int)`
+    * `set_marker_position(ID=Int, idx=Int)` - idx is a point between 0-201, or whatever the limits of the reading for the device is if it's higher.
+    * `marker_peak(ID=Int)`
+    * `marker_on(ID=Int)`
+    * `marker_off(ID=Int)`
+
+
 * **CLI Wrapper Usage:**
 * **Notes:**  
     * Marker indexes depend on what the device lists. 0 i
@@ -1823,6 +1832,25 @@ TODO :update examples from tinySA
     * None
 * **CLI Wrapper Usage:**
 * **Notes:** If unfamiliar with device and operation, DO NOT USE THIS. There is no error checking and you will be interfacing with the NanoVNA device directly.
+
+## Unrecognized Commands that Appear in Documentation
+
+These commands return the error message `Command not recognised.` from the device, not the library. They may appear in some versions of the firmware, but have not done anything to the DUT (NanoVNA-F V2).
+
+* `bandwidth`
+* `color`
+* `dump`
+* `freq` (frequency command is fine, but not shorter version)
+* `power`
+* `scan_bin`
+* `smooth`
+* `tcxo`
+* `threshold`
+* `time`
+* `transform`
+* `vbat`
+* `zero`
+* `s21offset`
 
 
 ## Notes for Beginners
