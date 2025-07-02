@@ -29,7 +29,7 @@ Done:
 
 Working on it:
 * documentation for original command usage and library functions
-    * Marker, Scan need updating + more error checking.
+    * Marker, Scan, Trace need updating + more error checking.
 * filling in unfinished args and any new NanoVNA features
 * An argparse option + some example scripts
 * Beginner notes, vocab, and some examples for common usage
@@ -1798,7 +1798,7 @@ TODO :update examples from tinySA
 * **Description:** returns the firmware version
 * **Original Usage:** `version`
 * **Direct Library Function Call:** `version()` 
-* **Example Return:** empty bytearray
+* **Example Return:** `bytearray(b'0.2.1\r')`
 * **Alias Functions:**
     * `get_version()`
 * **CLI Wrapper Usage:**

@@ -917,6 +917,7 @@ class nanoVNA():
 
 
     # The TRACE functions are split to handle the broad functionality of this call
+    # TODO
     def trace_select(self, ID):
         # split call for TRACE. select an available trace
         if (isinstance(ID, int)) and ID >=0:
