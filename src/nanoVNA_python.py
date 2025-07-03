@@ -5,15 +5,15 @@
 #   './nanoVNA_python.py'
 #   UNOFFICIAL Python API based on the tinySA official documentation at https://www.tinysa.org/wiki/
 #
+#  # NOTE: the tinySA_python library was created first, and then the NanoVNA device modifications added
 #   references:
-#       https://tinysa.org/wiki/pmwiki.php?n=TinySA4.ConsoleCommands  (NOTE: backwards compat not tested!)
+#       https://tinysa.org/wiki/pmwiki.php?n=TinySA4.ConsoleCommands  (NOTE: backwards compatibility not tested!)
 #       http://athome.kaashoek.com/tinySA/python/tinySA.py  (existing library with some examples)
-#       # NOTE: the tinySA_python library was created first, and then the nanoVNA device modifications added
-#
+#      
 #
 #
 #   Author(s): Lauren Linkous
-#   Last update: June 29, 2025
+#   Last update: July 2, 2025
 ##--------------------------------------------------------------------------------------------------\
 
 import serial
@@ -21,12 +21,10 @@ import serial.tools.list_ports # COM search method wants full path
 import numpy as np
 import re
 
-
 try:
     from src.device_config.device_config import deviceConfig
 except:
     from device_config.device_config import deviceConfig
-
 
 class nanoVNA():
     def __init__(self, parent=None):
@@ -40,7 +38,6 @@ class nanoVNA():
         self.verboseEnabled = False
         self.returnErrorByte = False
 
-
         # VARS BELOW HERE will be largely replaced with device class config calls
         # # this will allow for user settings and device presets
 
@@ -53,7 +50,6 @@ class nanoVNA():
         # screen 
         self.screenWidth = 800
         self.screenHeight = 480
-
 
 ######################################################################
 # Error and information printout
@@ -90,7 +86,6 @@ class nanoVNA():
         else:
             return bytearray(b'') # the default
 
-
 ######################################################################
 # Set Device Params
 #   Library specific functions. These set the boundaries & features for
@@ -106,7 +101,7 @@ class nanoVNA():
         try:
             noErrors = self.dev.select_preset_model(nanoVNAModel)
             if noErrors == False:
-                print("ERROR: device configuration unable to be set.This feature is underdevelopment")
+                print("ERROR: device configuration unable to be set. This feature is under development")
                 return
 
             # set variables from device configs.
@@ -120,14 +115,12 @@ class nanoVNA():
             self.screenWidth = 480
             self.screenHeight = 320
 
-
         except:
-            print("ERROR: device configuration unable to be set.This feature is underdevelopment")
+            print("ERROR: device configuration unable to be set. This feature is under development")
 
     def load_custom_config(self, configFile):
         # TODO: for loading modified or other devices working on the same firmware
         pass
-
 
 
 ######################################################################
@@ -152,7 +145,6 @@ class nanoVNA():
     def get_max_devicefreq(self):
         return self.maxVNADeviceFreq
 
-
 ######################################################################
 # Serial management and message processing
 ######################################################################
@@ -173,7 +165,7 @@ class nanoVNA():
             vid = port_info.vid
             pid = port_info.pid
 
-            # check if it's a tinySA OR nanoVNA. 
+            # check if it's a tinySA OR NanoVNA. 
             # They aren't differentiated against right now:
             if (vid==None):
                 pass 
@@ -183,9 +175,7 @@ class nanoVNA():
 
                 return True, connected_bool
 
-
         return False, False # no device found, not connected
-
 
     def connect(self, port, timeout=1):
         # attempt connection to provided port. 
@@ -199,11 +189,9 @@ class nanoVNA():
             self.print_message(err)
             return False
 
-
     def disconnect(self):
         # closes the serial port
         self.ser.close()
-
 
     def nanoVNA_serial(self, writebyte, printBool=False, pts=None):
         # write out to serial, get message back, clean up, return
@@ -212,7 +200,6 @@ class nanoVNA():
         self.ser.reset_input_buffer()
         # clear OUTPUT buffer
         self.ser.reset_output_buffer()
-
 
         self.ser.write(bytes(writebyte, 'utf-8'))
         msgbytes = self.get_serial_return()
@@ -249,7 +236,6 @@ class nanoVNA():
                 break
             
         return bytearray(complete)
-
 
     def read_until_end_marker(self, end_marker=b'}', timeout=10.0):
         # scan and scan raw might return early with nanoVNA_serial
@@ -298,21 +284,10 @@ class nanoVNA():
 # Reusable format checking functions
 ######################################################################
 
-    def convert_frequency(self, txtstr):
-        # this takes the user input (as text) and converts it. 
-        #  From documentation:
-        #       Frequencies can be specified using an integer optionally postfixed with a the letter 
-        #       'k' for kilo 'M' for Mega or 'G' for Giga. E.g. 0.1M (100kHz), 500k (0.5MHz) or 12000000 (12MHz)
-        # However the abbreviation makes error checking with numerics more difficult. so convert everything to Hz.
-        #  e notation is fine
-        pass
-
-
     def is_rgb24(self, hexStr):
         # check if the string matches the pattern 0xRRGGBB
         pattern = r"^0x[0-9A-Fa-f]{6}$"
         return bool(re.match(pattern, hexStr))
-
 
 ######################################################################
 # Serial command config, input error checking
@@ -348,7 +323,6 @@ class nanoVNA():
             self.print_message("ERROR: beep_time() takes a numerical value in seconds")
             msgbytes = self.error_byte_return()
         return msgbytes
-
 
     def cal(self, val=0):
         # Work through the calibration process. 
@@ -391,7 +365,6 @@ class nanoVNA():
     def cal_off(self):
         return self.cal('of')
 
-
     def capture(self):
         # requests a screen dump to be sent in binary format 
         # 800*480 for NanoVNA-F V2 and V3 
@@ -433,7 +406,7 @@ class nanoVNA():
         return msgbytes   
 
     def cwfreq(self, val):
-        # Set the continious wave (CW) frequency
+        # Set the continuous wave (CW) frequency
         # usage: cwfreq {freq in Hz}
         # example return: bytearray(b'')
         
@@ -451,7 +424,6 @@ class nanoVNA():
     def set_cwfreq(self, val):
         # alias for cwfreq
         return self.cwfreq(val)
-
 
     def data(self, val=0):
         # dumps the trace data. 
@@ -564,7 +536,6 @@ class nanoVNA():
         # alias for info()
         return self.info()
 
-
     def lcd(self, X, Y, W, H, COL):
         # displays various SW and HW information
         # usage: info
@@ -608,7 +579,6 @@ class nanoVNA():
     def get_LCD_ID(self):
         # alias for LCD_ID()
         return self.LCD_ID()
-
 
     def marker(self, ID=None, val=None, idx=None):
         # sets or dumps marker info.
@@ -695,7 +665,6 @@ class nanoVNA():
         #alias function for marker()
         return self.marker(ID,'off', None)
 
-
     def pause(self):
         # pauses the sweeping in either input or output mode
         # usage: pause
@@ -729,7 +698,6 @@ class nanoVNA():
     def set_screen_brightness(self, val):
         # alias function for pwm
         return self.pwm(val)
-
 
     def recall(self, val=0):
         # loads a previously stored preset,where 0 is the startup preset 
@@ -778,7 +746,6 @@ class nanoVNA():
     def lcd_resolution(self):
         # alias function for resolution()
         return self.resolution() 
-
 
     def resume(self):
         # resumes the sweeping in either input or output mode
@@ -888,7 +855,6 @@ class nanoVNA():
                 self.print_message("ERROR: Scan(). More than 0 points must be used to return data in a scan")
                 msgbytes = self.error_byte_return()
 
-
         except:
             self.print_message("ERROR: Scan(). Invalid input. Check input parameters. refer to documentation for details")
             msgbytes = self.error_byte_return()
@@ -928,7 +894,6 @@ class nanoVNA():
         #alias function for scan()
         return self.scan(start, stop, pts, 7)    
 
-
     def SN(self):
         # get the unique serial number of the NanoVNA
         # usage: SN
@@ -941,7 +906,6 @@ class nanoVNA():
     def get_SN(self):
         # alias for SN()
         return self.SN()
-
 
     def config_sweep(self, argName=None, val=None): 
             # split call for SWEEP
@@ -1030,7 +994,6 @@ class nanoVNA():
 
         return msgbytes 
 
-
     def touch_cal(self):
         # starts the touch calibration. 
         # Physical interaction with the device screen is required.
@@ -1056,7 +1019,6 @@ class nanoVNA():
     
     def start_touch_test(self):
         return self.touch_test()
-
 
     # The TRACE functions are split to handle the broad functionality of this call
 
@@ -1158,7 +1120,6 @@ class nanoVNA():
         # alias for trace()
         return self.trace(ID=ID, trace_format="delay", val=val) 
 
-
     def set_trace_channel(self, ID, val):
         # alias for trace()
         if isinstance(val, int):
@@ -1207,7 +1168,7 @@ class nanoVNA():
 ######################################################################
 
 if __name__ == "__main__":
-    # unit testing. not recomended to write prografm from here
+    # unit testing. not recommended to write program from here
 
     # create a new tinySA object    
     nvna = nanoVNA()
@@ -1223,7 +1184,6 @@ if __name__ == "__main__":
         nvna.set_verbose(True) #detailed messages
         nvna.set_error_byte_return(True) #get explicit b'ERROR'
 
-
         msg = nvna.help()
         print(msg)
 
@@ -1234,6 +1194,7 @@ if __name__ == "__main__":
         nvna.disconnect()
     else:
         print("ERROR: could not connect to port")
+
 
 
 
