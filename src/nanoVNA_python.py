@@ -537,9 +537,9 @@ class nanoVNA():
         return self.info()
 
     def lcd(self, X, Y, W, H, COL):
-        # displays various SW and HW information
-        # usage: info
-        # example return: bytearray(b'tinySA ...\r')
+        # draws a rectangle on the active area of the screen
+        # usage: lcd X Y W H COL
+        # example return: b''
 
         # check that X & Y are larger than 0 & ints.
         if (isinstance(X, (int))) and (isinstance(Y, (int))) and (isinstance(W, (int))) and (isinstance(H, (int))) :
