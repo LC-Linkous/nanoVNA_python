@@ -1827,7 +1827,6 @@ Quick Link Table:
     * `set_trace_refposition(ID=Int|"all",val=Float|Int)`
     * `set_trace_delay(ID=Int|"all",val=Float|Int)`
     * `set_trace_channel(ID=Int|"all", val=Int)`
-
 * **CLI Wrapper Usage:**
 * **Notes:** 
     * NOTE: Traces can be turned OFF programatically, but not ON.
@@ -1894,7 +1893,17 @@ These commands return the error message `Command not recognised.` from the devic
 This is a brief section for anyone that might have jumped in with a bit too much ambition. It is highly suggested to _read the manual_. 
 
 Very useful, important documentation can be found at:
-TODO:
+* The main website: [https://nanovna.com/](https://nanovna.com/)
+* Common troubleshooting and help pages:
+    * [About NanoVNA](https://nanovna.com/?page_id=21)
+    * [Start Using a NanoVNA](https://nanovna.com/?page_id=60)
+    * [How to Read the NanoVNA Screen](https://nanovna.com/?page_id=46)
+    * [Calibrating the NanoVNA](https://nanovna.com/?page_id=2)
+* The [Wiki and User Group](https://nanovna.com/?page_id=98)
+
+
+
+This library was modified from the [tinySA_python library](https://github.com/LC-Linkous/tinySA_python), and much of the material orignated there. These ARE NOT the same device, and have very different functionality, but some of the menus and commands are in the same format.
 
 * The [tinySA wiki](https://tinysa.org/wiki/pmwiki.php)
 * The getting started [first use](https://tinysa.org/wiki/pmwiki.php?n=Main.FirstUse) page
@@ -1922,6 +1931,7 @@ Running list of words and acronyms that get tossed around with little to no expl
         * This is what the 'SA' in 'tinySA' is!
 * **SA** -  Signal Analyzer. A device that measures the properties of a single frequency signal. This can include power, magnitude, phase, and other features such as  modulation. 
 * **SNA** - Scalar Network Analyzer. A device that measures amplitude as it passes through the device. It can be used to determine gain, attenuation, or frequency response.  
+* **SWR** - Standing Wave Ratio. SWR is an indication of how well an antenna is matched to a transmission line. A low SWR (close to 1:1) means there is minimal signal reflection and the power is being transmitted down the line eddiciently. A high SWR indicats and impedance mismatch between a DUT (or antenna, or network) and the transmission line, which in this case is internal to the NanoVNA.
 * **VNA** - Vector Network Analyzer. A device that measures the network parameters of electrical networks (typically, s-parameters). Can measure both measures both amplitude and phase properties. The [wiki article on network analyzers]( https://en.wikipedia.org/wiki/Network_analyzer_(electrical)) covers the topic in detail.  
 
 
@@ -1978,11 +1988,25 @@ This library is updated in spurts. June-August are going to be the most active d
 
 ## References
  
-The original documentation for this project comes from the related [tinySA_python](https://github.com/LC-Linkous/tinySA_python) library. That library was taken and applied to the NanoVNA to get a baseline of what commands were shared, and what might be new (to the library) for the NanoVNA. 
+The original documentation for this project comes from the related [tinySA_python](https://github.com/LC-Linkous/tinySA_python) library. That library was taken and applied to the NanoVNA to get a baseline of what commands were shared, and what might be new (to the library) for the NanoVNA. These ARE NOT the same device, and have very different functionality, but some of the menus and commands are in the same format.
 
 
-* PDF (link to download from hosting website) download found late in the documentation process, but has been a valuable (cross)reference:
+* NAnoVNA Documentation PDF (link to download from hosting website) download found late in the documentation process, but has been a valuable (cross)reference:
     * https://www.sysjoint.com/ueditor/php/upload/file/PDF/NanoVNA-F%20V3%20Portable%20Vector%20Network%20Analyzer%20User%20Guide%20V1.0.pdf
+
+The NanoVNA main site:
+* The main website: [https://nanovna.com/](https://nanovna.com/)
+* Common troubleshooting and help pages:
+    * [About NanoVNA](https://nanovna.com/?page_id=21)
+    * [Start Using a NanoVNA](https://nanovna.com/?page_id=60)
+    * [How to Read the NanoVNA Screen](https://nanovna.com/?page_id=46)
+    * [Calibrating the NanoVNA](https://nanovna.com/?page_id=2)
+* The [Wiki and User Group](https://nanovna.com/?page_id=98)
+
+
+* The [tinySA wiki](https://tinysa.org/wiki/pmwiki.php)
+* The getting started [first use](https://tinysa.org/wiki/pmwiki.php?n=Main.FirstUse) page
+* Frequently asked questions (FAQs) can be found on the [Wiki FAQs page](https://tinysa.org/wiki/pmwiki.php?n=Main.FAQ)
 
 
 * [tinySA HomePage](https://tinysa.org/wiki/)  https://www.tinysa.org/wiki/
