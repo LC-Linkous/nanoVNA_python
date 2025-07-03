@@ -1006,7 +1006,7 @@ class nanoVNA():
         # alias for config_sweep() 
         return self.config_sweep("cw", val)   
     
-    def run_sweep(self, startVal=None, stopVal=None, pts=250):
+    def run_sweep(self, start=None, stop=None, pts=250):
             # split call for SWEEP
             # Execute sweep.
             # The frequencies specified should be 
@@ -1016,16 +1016,16 @@ class nanoVNA():
             # sweep [(start|stop|center|span|cw {frequency}) | 
             #   ({start(Hz)} {stop(Hz)} [0..290])]
             # # example return:  
-        if (startVal==None) or (stopVal==None):
+        if (start==None) or (stop==None):
             self.print_message("ERROR: sweep start and stop need non-empty values")
             msgbytes = self.error_byte_return()
-        elif (int(startVal) >= int(stopVal)):
+        elif (int(start) >= int(stop)):
             self.print_message("ERROR: sweep start must be less than sweep stop value")
             msgbytes = self.error_byte_return()
         else:
             #do stuff, error checking needed
             self.print_message("sweeping...")
-            writebyte = 'sweep '+str(startVal)+' '+str(stopVal)+' '+str(pts)+'1\r\n'
+            writebyte = 'sweep '+str(start)+' '+str(stop)+' '+str(pts)+'1\r\n'
             msgbytes = self.nanoVNA_serial(writebyte, printBool=False)
 
         return msgbytes 
@@ -1059,174 +1059,115 @@ class nanoVNA():
 
 
     # The TRACE functions are split to handle the broad functionality of this call
-    # TODO
-    def trace_select(self, ID):
-        # split call for TRACE. select an available trace
-        if (isinstance(ID, int)) and ID >=0:
-            writebyte = 'trace '+ str(ID) +'\r\n'
+
+    def trace(self, ID=None, trace_format=None, val=None):
+        # set trace format and attributes
+        # usage: trace [0|1|2|3|all] [off|logmag|linear|phase|smith|swr|polar|delay|refpos|channel] [value]
+        #       trace {ID} {format/action} {value/channel}
+        #  ID - required. the trace ID, starts at 0
+        # trace_format - optional, trace format/action.
+        #        With no args this is applied to the ID channel
+        # val - optional, either a value or a channel related to the action
+        # example return: b''
+
+        # if all args are 'None', return the active trace info
+        if (ID==None) and (trace_format==None) and (val==None):
+            writebyte = 'trace\r\n'
             msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-            self.print_message("selecting trace")
-        else:
-            self.print_message("ERROR: trace numbers must be integers greater than 0. see device documentation for max")
-            msgbytes = self.error_byte_return()
-        return msgbytes
+            self.print_message("returning the attributes of active traces")
+            return msgbytes 
     
-    def trace_units(self, val):
-        # split call for TRACE. set the units for the traces
-        # explicitly allowed vals
-        accepted_vals =  ["dBm", "dBmV", "dBuV", "V", "W", "Vpp", "RAW"]
-
-        if (str(val) in accepted_vals):
-            writebyte = 'trace '+ str(val) +'\r\n'
-            msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-            self.print_message("setting trace units to " + str(val))
+        # error check that ID is an int or "all"
+        # and if the only val is ID, return that info
+        accepted_ID_vals = [1,2,3,4, "all"]
+        if ID in accepted_ID_vals:
+            if (trace_format==None) and (val==None):
+                writebyte = 'trace '+str(ID)+'\r\n'
+                msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                self.print_message("returning the attributes of trace " + str(ID))
+                return msgbytes 
+               
         else:
-            self.print_message("ERROR: trace vals can be 'dBm'|'dBmV'|'dBuV'|'RAW'|'V'|'Vpp'|'W'")
+            self.print_message("ERROR: trace() ID must be an integer or 'all'")
+            msgbytes = self.error_byte_return()
+            return msgbytes
+        
+        #start must be LESS than stop
+        accepted_format_vals = ['off','logmag','linear','phase',
+                                'smith','swr','polar',
+                                'delay','refpos','channel']
+
+        if str(trace_format) in accepted_format_vals:
+            if val == None:
+                # these arguments/formats are applied to the channel 
+                # specified by the ID value
+                writebyte = 'trace '+ str(ID) +' '+ str(trace_format)+'\r\n'
+                msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                self.print_message("applying format to trace " + str(ID))
+                return msgbytes 
+
+            else:
+                # try because it's possible to have non-working inputs to val
+                try:
+                    writebyte = 'trace '+ str(ID) +' '+ str(trace_format)+' '+ str(val)+'\r\n'
+                    msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
+                    self.print_message("returning the attributes of active traces")
+                    return msgbytes 
+                except:
+                    self.print_message("ERROR: trace() ID must be an integer")
+                    msgbytes = self.error_byte_return()
+                    return msgbytes
+        
+        else:
+            self.print_message("ERROR: trace() unrecognized argument " + str(trace_format))
+            msgbytes = self.error_byte_return()
+            return msgbytes
+    
+    def get_all_trace_attr(self):
+        # alias for trace()
+        return self.trace()
+    def get_trace_attr(self, ID):
+        # alias for trace()
+        return self.trace(ID)
+    def trace_off(self, ID):
+        # alias for trace()
+        return self.trace(ID=ID, trace_format="off")
+    def set_trace_logmag(self, ID):
+        # alias for trace()
+        return self.trace(ID=ID, trace_format="logmag")
+    def set_trace_linear(self, ID):
+        # alias for trace()
+        return self.trace(ID=ID, trace_format="linear")
+    def set_trace_phase(self, ID):
+        # alias for trace()
+        return self.trace(ID=ID, trace_format="phase")
+    def set_trace_smith(self, ID):
+        # alias for trace()
+        return self.trace(ID=ID, trace_format="smith")
+    def set_trace_polar(self, ID):
+        # alias for trace()
+        return self.trace(ID=ID, trace_format="polar")   
+    
+    def set_trace_swr(self, ID, val):
+        # alias for trace()
+        return self.trace(ID=ID, trace_format="swr", val=val) 
+    def set_trace_refposition(self, ID, val):
+        # alias for trace()
+        return self.trace(ID=ID, trace_format="refpos", val=val) 
+    def set_trace_delay(self, ID, val):
+        # alias for trace()
+        return self.trace(ID=ID, trace_format="delay", val=val) 
+
+
+    def set_trace_channel(self, ID, val):
+        # alias for trace()
+        if isinstance(val, int):
+            msgbytes = self.trace(ID=ID, trace_format="channel", val=val) 
+        else:
+            self.print_message("ERROR: trace() ID must be an integer")
             msgbytes = self.error_byte_return()
         return msgbytes
-
-    def trace_scale(self, val="auto"):
-        # split call for TRACE. scales a trace/traces.
-        writebyte = 'trace scale' + str(val) + '\r\n'
-        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-        self.print_message("scaling trace")
-        return msgbytes
-
-    def trace_reflevel(self, val="auto"):
-        # split call for TRACE. sets the reference level of a trace
-        writebyte = 'trace reflevel' + str(val) + '\r\n'
-        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-        self.print_message("setting reference level of trace")
-        return msgbytes
-
-    def trace_value(self, ID):
-        # split call for TRACE. gets values of trace
-
-        writebyte = 'trace' + str(ID) + 'value \r\n'
-        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-        self.print_message("getting raw trace values")
-        return msgbytes
-
-    def trace_toggle(self, ID, val="on"):
-        # split call for TRACE. toggle trace ON or OFF
-        # full description: displays all or one trace information
-        # or sets trace related information
-        # usage: 
-        # trace [ {0..2} | 
-        # dBm|dBmV|dBuV|V|W |store|clear|subtract | (scale|
-        # reflevel) auto|{level}
-        # example return: 
-
-        accepted_vals = ["on", "off"]
-
-        if (isinstance(ID,int)) and (str(val) in accepted_vals):
-            writebyte = 'trace' + str(ID) + ' ' +str(val)+ '\r\n'
-            msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-            self.print_message("toggling trace " +str(val))
-        else:
-            self.print_message("ERROR: trace ID is an Int, val='on'|'off'")
-            msgbytes = self.error_byte_return()
-
-        return msgbytes
-
-    def trace_subtract(self, ID1, ID2):
-        # split call for TRACE. subtracts a trace/traces. 
-        # subtract ID1 FROM ID2
-
-        if (isinstance(ID1,int)) and (isinstance(ID2,int)):
-            writebyte = 'trace' + str(ID1) + ' subtract ' +str(ID2)+ '\r\n'
-            msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-            self.print_message("subtracting traces")
-        else:
-            self.print_message("ERROR: trace IDs must be Ints")
-            msgbytes = self.error_byte_return()
-
-        return msgbytes
-
-    def trace_copy(self, ID1, ID2):
-        # split call for TRACE. copies a trace/traces. 
-
-        if (isinstance(ID1,int)) and (isinstance(ID2,int)):
-            writebyte = 'trace' + str(ID1) + ' subtract ' +str(ID2)+ '\r\n'
-            msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-            self.print_message("copying traces")
-        else:
-            self.print_message("ERROR: trace IDs must be Ints")
-            msgbytes = self.error_byte_return()
-
-        return msgbytes
-
-    def trace_freeze(self, ID):
-        # split call for TRACE. freezes a trace
-
-        if (isinstance(ID,int)):
-            writebyte = 'trace' + str(ID) + ' freeze\r\n'
-            msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-            self.print_message("freezing trace")
-        else:
-            self.print_message("ERROR: trace ID must be Ints")
-            msgbytes = self.error_byte_return()
-
-        return msgbytes
-
-
-    def trace_clear(self, val):
-        # split call for TRACE. clears a trace/traces. doesnt seem to take inputs
-        # full description: displays all or one trace information
-        # or sets trace related information
-        # usage: 
-        # trace [ {0..2} | 
-        # dBm|dBmV|dBuV|V|W |store|clear|subtract | (scale|
-        # reflevel) auto|{level}
-        # example return: 
-
-        writebyte = 'trace ' + str(val) + 'clear \r\n'
-        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-        self.print_message("clearing trace(s)")
-        return msgbytes
-
-
-
-    def trace_freeze(self, ID):
-        # split call for TRACE. sets the reference level of a trace
-        # full description: displays all or one trace information
-        # or sets trace related information
-        # usage: 
-        # trace [ {0..2} | 
-        # dBm|dBmV|dBuV|V|W |store|clear|subtract | (scale|
-        # reflevel) auto|{level}
-        # example return: 
-
-        writebyte = 'trace' + str(ID) + 'freeze \r\n'
-        msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-        self.print_message("freezing trace")
-        return msgbytes
-
-
-
-    def trace_action(self, ID, val):
-        # split call for TRACE. toggle trace ON or OFF
-        # full description: displays all or one trace information
-        # or sets trace related information
-        # usage: 
-        # trace [ {0..2} | 
-        # dBm|dBmV|dBuV|V|W |store|clear|subtract | (scale|
-        # reflevel) auto|{level}
-        # example return: 
-
-        accepted_vals = ["copy","freeze","subtract","view","value"]
-
-        if (isinstance(ID,int)) and (str(val) in accepted_vals):
-            writebyte = 'trace' + str(ID) + ' ' +str(val)+ '\r\n'
-            msgbytes = self.nanoVNA_serial(writebyte, printBool=False) 
-            self.print_message("setting trace action")
-        else:
-            self.print_message("ERROR: trace vals can be 'copy'|'freeze'|'subtract'|'view'|'value' and ID is an Int")
-            msgbytes = self.error_byte_return()
-
-        return msgbytes
-
-
+   
     def version(self):
         # displays the version text
         # usage: version

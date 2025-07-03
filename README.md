@@ -25,12 +25,12 @@ This library covers most of the documented commands for the NanoVNA device serie
 
 Done:
 * examples for common use and functionality 
+* documentation for original command usage and library functions
 * some Debian-flavored Linux testing
 
 Working on it:
-* documentation for original command usage and library functions
-    * Traces need updating + more error checking.
 * filling in unfinished args and any new NanoVNA features
+    * Ranges and device specs need to be added (or at least changable) for error detection.
 * An argparse option + some example scripts
 * Beginner notes, vocab, and some examples for common usage
 
@@ -1702,7 +1702,7 @@ Quick Link Table:
         *  When the frequency and S11 are returned, the data is the `freq in KHz` and then the 2 parts of the complex signal. The `padding` is has  3 blank float values.
     * `scan 1000000 2000000 200 7`
         * `bytearray(b'1000 -1.133184 0.885893 -0.000045 -0.000008 \r\n....\r\n0 0.000000 0.000000 0.000000 0.000000 \r'))`
-        *  When the frequency, S11, and S21 are returned, the data is the `freq in KHz` and then the 2 parts of the EACH complex signal, 4 parts in total. The `padding` has 5 blank float values.
+        *  When the frequency, S11, and S21 are returned, the data is the `freq in KHz` and then the 2 parts of the EACH complex signal, 4 signal parts in total. The `padding` has 5 blank float values.
     * Returns for invalid input:
         * `bytearray(b'sweep points exceeds range 51 -201\r')`
         * `bytearray(b'frequency range is invalid\r')`
@@ -1753,7 +1753,13 @@ Quick Link Table:
     * empty bytearray `b''`
     * bytearray(b'0 800000000 450\r')
 * **Alias Functions:**
-    * TODO
+    * `get_sweep_params()`
+    * `set_sweep_start(val=Int)` - val is frequency in Hz
+    * `set_sweep_stop(val=Int)` - val is frequency in Hz
+    * `set_sweep_center(val=Int)` - val is frequency in Hz
+    * `set_sweep_span(val=Int)` - val is frequency in Hz
+    * `set_sweep_cw(val=Int)` - val is frequency in Hz
+    * `run_sweep(start=Int, stop=Int, pts=Int)`
 * **CLI Wrapper Usage:**
 * **Notes:**  
  * `sweep` with no arguments lists the current sweep settings, the frequencies specified should be within the permissible range. 
@@ -1791,27 +1797,44 @@ Quick Link Table:
 
 ### **trace**
 * **Description:** displays all or one trace information or sets trace related information. INCOMPLETE due to how many combinations are possible.
-* **Original Usage:**  `trace [0|1|2|3|all] [{format}|scale|refpos|channel|off] [value]`
-* **Direct Library Function Call:**
-    * None, see alias functions.
+* **Original Usage:**  
+    * `trace [0|1|2|3|all] [off|logmag|linear|phase|smith|swr|polar|delay|refpos|channel] [value]`
+    * read the above as `trace {ID} {format/action} {value/channel}`
+* **Direct Library Function Call:** `trace(ID=None|Int, trace_format=None|String, val=None|Int)` 
 * **Example Return:** 
      * empty bytearray  `b''`
-     * TODO
+     * `trace`
+        * `bytearray(b'0 LOGMAG S11 1.000000 7.000000\r\n1 LOGMAG S21 1.000000 7.000000\r\n2 SMITH S11 1.000000 0.000000\r')`
+        * summary of all active traces
+    * `trace 0` - Information on Trace 0, S11
+        * `bytearray(b'0 LOGMAG S11\r')`
+    * `trace 1` - Information on Trace 1, S21
+        * `bytearray(b'1 LOGMAG S21\r')`
+    * `trace 0 linear 1` - Set trace 0 to linear, and set the input from chanel 1 (port 2)
+        * `bytearray(b'')`
+    * `trace 0 linear` - set the format of trace 0 to linear. This trace is by default on channel 0 (port 1)
+        * `bytearray(b'')`
 * **Alias Functions:**
-    * `trace`
-    * ``
-    * ``
-    * ``
-    * ``
-    * ``
-    * ``
-    * ``
+    * `get_all_trace_attr()`
+    * `get_trace_attr(ID=Int|"all")`
+    * `trace_off(ID=Int|"all")`
+    * `set_trace_logmag(ID=Int|"all")`
+    * `set_trace_linear(ID=Int|"all")`
+    * `set_trace_phase(ID=Int|"all")`
+    * `set_trace_smith(ID=Int|"all")`
+    * `set_trace_polar(ID=Int|"all")`
+    * `set_trace_swr(ID=Int|"all",val=Float|Int)`
+    * `set_trace_refposition(ID=Int|"all",val=Float|Int)`
+    * `set_trace_delay(ID=Int|"all",val=Float|Int)`
+    * `set_trace_channel(ID=Int|"all", val=Int)`
+
 * **CLI Wrapper Usage:**
 * **Notes:** 
+    * NOTE: Traces can be turned OFF programatically, but not ON.
     * `trace` no args returns characteristics of active traces
-    * `trace {ID=integer}` gets characteristics of that trace. using 'all' returns information for all traces.
+    * `trace {ID=integer}` gets characteristics of that trace. using 'all' returns information for all traces. 
     * `trace {ID=integer} {str=logmag|phase|smith|linear|delay|swr}`  The ID sets the trace ID, and the second argument indicates what trace data format is returned. 
-    * `trace {ID=integer} {on|off}` turn the traces on or off. using 'all' will toggle all traces on or off. TODO: confirm the 'on' - conflicting documentation.
+    * `trace {ID=integer} {off}` turn the trace off. using 'all' will toggle all traces off. Traces cannot be turned 'on' with this method (conflicting documentation)
     * `trace {ID=integer} {str=scale|refpos|channel} {val=int}` the first argument is the ID of the trace. The second argument is an action to `scale` the trace by a numeric value, to set the reference position (`refpos`), or to set the channel. The third value specifies the value for the action.
 
 
