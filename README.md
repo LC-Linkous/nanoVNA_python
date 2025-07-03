@@ -50,7 +50,6 @@ Working on it:
     * [Connecting and Disconnecting the Device](#connecting-and-disconnecting-the-device)
     * [Toggle Error Messages](#toggle-error-messages)
     * [Device and Library Help](#device-and-library-help)
-    * [Setting NanoVNA Parameters](#setting-nanovna-parameters)
     * [Getting Data from Active Screen](#getting-data-from-active-screen)
     * [Analysis of the Returned Data from the NanoVNA](#analysis-of-the-returned-data-from-the-nanovna)
         * [Types of Data Requests](#types-of-data-requests)
@@ -251,16 +250,15 @@ This library returns strings as cleaned byte arrays. The command and first `\r\n
 
 The original message format:
 
-# TODO: UPDATE EXAMPLE
 
 ```python
-bytearray(b'infp\r\ndeviceid 0\r\nch>')
+bytearray(b'info\r\nModel:        NanoVNA-F_V2\r\nFrequency:    50k ~ 3GHz\r\nBuild time:   Mar  2 2021 - 09:40:50 CST\r\nch> \r\n')
 ```
 
 Cleaned version:
 
 ```python
-bytearray(b'deviceid 0\r')
+bytearray(b'Model:        NanoVNA-F_V2\r\nFrequency:    50k ~ 3GHz\r\nBuild time:   Mar  2 2021 - 09:40:50 CST\r')
 ```
 
 ### Connecting and Disconnecting the Device
@@ -341,22 +339,49 @@ nvna.help()
 
 The `help` command returns bytearray in the format `bytearray(b'commands:......')`
 
-### Setting NanoVNA Parameters
-TODO when error checking is complete to show multiple examples
 
-```python
-
-```
 ### Getting Data from Active Screen
 
 See other sections for the following examples:
 * [Saving Screen Images](#saving-screen-images)
 * [Plotting Data with Matplotlib](#plotting-data-with-matplotlib)
 
-This example shows several types of common data requests:
+The most straight forward way to get data from an active screen is with the `data` command. This will pull data from an active screen. It will not adjust the range or number of points before a read. If the range needs to be adjusted prior to a read, use `scan` instead.
 
 ```python
-TODO - updating the library with commands first
+# import NanoVNA library
+# (NOTE: check library path relative to script path)
+from src.nanoVNA_python import nanoVNA 
+import time
+import serial
+
+# create a new tinySA object    
+nvna = nanoVNA()
+
+# set the return message preferences 
+nvna.set_verbose(True) #detailed messages
+nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+
+
+# attempt to autoconnect
+found_bool, connected_bool = nvna.autoconnect()
+
+# if port closed, then return error message
+if connected_bool == False:
+    print("ERROR: could not connect to port")
+else: # if port found and connected, then complete task(s) and disconnect
+
+    # DATA gets the data on the screen
+    # get the S11 data
+    s11 = nvna.get_s11_data()
+    print(s11)
+    # get the S21 data
+    s21 = nvna.get_s21_data()
+    print(s21)
+
+    nvna.resume() #resume 
+
+    nvna.disconnect()
 
 
 ```
@@ -365,21 +390,65 @@ TODO - updating the library with commands first
 
 #### Types of Data Requests
 
-This example shows several types of common data requests:
+This example shows how to get measured data on the screen (using `data`) or to specify the read range and then measure with `scan`. 
+
+**Example 1: Reading VNA Screen Data**
 
 ```python
-TODO - updating the library with commands first
+# import NanoVNA library
+# (NOTE: check library path relative to script path)
+from src.nanoVNA_python import nanoVNA 
+import time
+import serial
+
+# create a new tinySA object    
+nvna = nanoVNA()
+
+# set the return message preferences 
+nvna.set_verbose(True) #detailed messages
+nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+
+
+# attempt to autoconnect
+found_bool, connected_bool = nvna.autoconnect()
+
+# if port closed, then return error message
+if connected_bool == False:
+    print("ERROR: could not connect to port")
+else: # if port found and connected, then complete task(s) and disconnect
+
+    # set up some parameters for the scan
+    # NanoVNA takes freq in Hz, as ints
+    start = int(1e9) # 1 GHz, as an int. 
+    stop = int(3e9)  # 3 GHz, as an int.
+    # max number of points is 200, UP TO 201
+    pts = 200
+
+    # SCAN can change range and number of pts
+    # get the frequency valuess (the Y Axis of the screen)
+    freq = nvna.get_scan_frequencies(start, stop, pts)
+    print(freq)
+    # get the S11 data
+    s11 = nvna.get_scan_s11(start, stop, pts)
+    print(s11)
+    # get the S21 data
+    s21 = nvna.get_scan_s21(start, stop, pts)
+    print(s21)
+
+    # DATA gets the data on the screen
+    # get the S11 data
+    s11 = nvna.get_s11_data()
+    print(s11)
+    # get the S21 data
+    s21 = nvna.get_s21_data()
+    print(s21)
+
+    nvna.resume() #resume 
+
+    nvna.disconnect()
 
 
 ```
-
-#### Getting S11
-
-#### Getting S21
-
-#### Real, Imaginary, Phase, Smith
-
-
 
 
 ### Saving Screen Images
