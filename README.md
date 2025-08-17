@@ -1837,7 +1837,7 @@ Quick Link Table:
  * `sweep` with no arguments lists the current sweep settings, the frequencies specified should be within the permissible range. 
  * `sweep {integer}` is interpreted as start frequency value.
  * `sweep {integer} {integer}` is interpreted as start and stop frequencies.
- * `sweep {integer} {integer} {integer}` is interpreted as start and stop frequencies, and the umber of points.
+ * `sweep {integer} {integer} {integer}` is interpreted as start and stop frequencies, and the number of points.
 * `sweep start {integer}`: sets the start frequency of the sweep.
 * `sweep stop {integer}`: sets the stop frequency of the sweep.
 * `sweep center {integer}`: sets the center frequency of the sweep.
