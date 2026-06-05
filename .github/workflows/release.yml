@@ -1,0 +1,81 @@
+# Build and publish nvnapython to PyPI on a version tag.
+#
+# Trigger: push a tag like 'v2.0.0'. The workflow builds the sdist + wheel with
+# uv (matching the uv_build backend in pyproject.toml), runs the hardware-free
+# test suite as a gate, then publishes to PyPI using Trusted Publishing (OIDC) --
+# no API token is stored in the repo.
+#
+# One-time setup on PyPI: add this repo as a Trusted Publisher for the
+# 'nvnapython' project (PyPI -> project -> Settings -> Publishing), naming this
+# workflow file (release.yml) and the 'pypi' environment below.
+#
+# To cut a release:
+#   1. bump version in pyproject.toml
+#   2. git tag v2.0.0 && git push origin v2.0.0
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (hardware-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install package with test extras
+        run: uv pip install --system -e ".[test]"
+
+      - name: Run hardware-free tests
+        run: pytest -m "not hardware" -q
+
+  build:
+    name: build distributions
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/nvnapython/
+    permissions:
+      id-token: write   # required for Trusted Publishing (OIDC)
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
