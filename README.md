@@ -1,6 +1,7 @@
-# nanoVNA_python (nvnapython)
+# nanoVNA_python
 
-# UNDER CONSTUCTION 
+# UNDER CONSTUCTION - The nice README with all the details will be back soon
+
 
 An **UNOFFICIAL** Python API for the NanoVNA series of vector network analyzers.
 
@@ -45,4 +46,16 @@ if connected:
 pytest                  # all hardware-free tests
 pytest -m "not hardware" # explicit: skip hardware
 pytest -m hardware       # requires a connected NanoVNA
+```
+
+
+To know which device you're running against:
+
+```python
+
+from nvnapython import nanoVNA
+n = nanoVNA()
+print("model:", n.get_device_model())          # new core.py has this method
+print("maxPoints:", n.maxPoints)
+
 ```
