@@ -246,13 +246,34 @@ class nanoVNA(
             self.ser = serial.Serial(port=port, timeout=timeout)
             return True
         except Exception as err:
+            self.ser = None
             self.print_message("ERROR: cannot open port at " + str(port))
             self.print_message(err)
+            # On Windows a PermissionError or a FileNotFoundError on a port that
+            # DID enumerate almost always means the port is already open in
+            # another process (another script/REPL still holding it, a serial
+            # monitor, or a prior run that did not disconnect). Point at that.
+            if isinstance(err, (PermissionError, FileNotFoundError)):
+                self.print_message(
+                    "HINT: the port was detected but could not be opened. It is "
+                    "likely held by another process (another Python session, a "
+                    "serial monitor, or a previous run that did not disconnect). "
+                    "Close other programs using the port, or unplug/replug the "
+                    "device, then try again.")
             return False
 
     def disconnect(self):
-        # closes the serial port
-        self.ser.close()
+        # Close the serial port and release the handle.
+        # Tolerant of being called when never connected or already closed, so
+        # cleanup paths (e.g. test teardown, error handlers) can always call it
+        # without risking an exception that leaves the port held open.
+        if self.ser is not None:
+            try:
+                self.ser.close()
+            except Exception as err:
+                self.print_message("WARNING: error while closing serial: " + str(err))
+            finally:
+                self.ser = None
 
     def nanoVNA_serial(self, writebyte, printBool=False, pts=None):
         # write out to serial, get message back, clean up, return.

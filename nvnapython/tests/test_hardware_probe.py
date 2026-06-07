@@ -44,12 +44,17 @@ def device():
     found, connected = dev.autoconnect()
     if not connected:
         pytest.skip("no NanoVNA device connected")
-    yield dev
     try:
-        dev.resume()
-    except Exception:
-        pass
-    dev.disconnect()
+        yield dev
+    finally:
+        try:
+            dev.resume()
+        except Exception:
+            pass
+        try:
+            dev.disconnect()
+        except Exception:
+            pass
 
 
 def _decode(b):

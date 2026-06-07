@@ -37,8 +37,14 @@ def device():
     found, connected = dev.autoconnect()
     if not connected:
         pytest.skip("no NanoVNA device connected")
-    yield dev
-    dev.disconnect()
+    try:
+        yield dev
+    finally:
+        # always release the port, even if the test failed or was interrupted
+        try:
+            dev.disconnect()
+        except Exception:
+            pass
 
 
 def test_info_nonempty(device):

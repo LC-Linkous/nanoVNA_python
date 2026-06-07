@@ -78,3 +78,22 @@ def test_default_model_is_f_v2(nvna):
     """A fresh instance is seeded to the F V2 default."""
     assert nvna.get_device_model() == "NANOVNA_F_V2"
     assert nvna.maxPoints == 201
+
+
+def test_disconnect_safe_when_never_connected():
+    """disconnect() must not raise if connect was never called (ser is None)."""
+    from nvnapython import nanoVNA
+    dev = nanoVNA()
+    dev.disconnect()      # must not raise
+    dev.disconnect()      # idempotent: safe to call again
+
+
+def test_disconnect_clears_handle():
+    """After disconnect(), the serial handle is cleared to None."""
+    from nvnapython import nanoVNA
+    class _FakeClosable:
+        def close(self): pass
+    dev = nanoVNA()
+    dev.ser = _FakeClosable()
+    dev.disconnect()
+    assert dev.ser is None
