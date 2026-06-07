@@ -130,9 +130,9 @@ class MarkersTracesMixin:
             self.print_message("returning the attributes of active traces")
             return msgbytes
 
-        accepted_ID_vals = [1, 2, 3, 4, "all"]
+        accepted_ID_vals = [0, 1, 2, 3, "all"]
         if ID not in accepted_ID_vals:
-            self.print_message("ERROR: trace() ID must be an integer 1..4 or 'all'")
+            self.print_message("ERROR: trace() ID must be an integer 0..3 or 'all'")
             return self.error_byte_return()
 
         # ID only -> dump that trace

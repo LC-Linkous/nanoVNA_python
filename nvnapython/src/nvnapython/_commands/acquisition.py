@@ -112,32 +112,6 @@ class AcquisitionMixin:
         self.print_message("pausing NanoVNA device")
         return msgbytes
 
-    def port(self, val):
-        # selects the active measurement port.
-        # usage: port {1:S11 2:S21}
-        # example return: ''
-        #
-        # Documented in the device 'help' output (port {1:S11 2:S21}).
-        # 1 selects S11 (port 1), 2 selects S21 (port 2).
-        accepted_vals = [1, 2]
-        if val in accepted_vals:
-            writebyte = 'port ' + str(val) + '\r\n'
-            msgbytes = self.nanoVNA_serial(writebyte, printBool=False)
-            self.print_message("selecting port " + str(val) +
-                               (" (S11)" if val == 1 else " (S21)"))
-        else:
-            self.print_message("ERROR: port() takes 1 (S11) or 2 (S21)")
-            msgbytes = self.error_byte_return()
-        return msgbytes
-
-    def set_port_s11(self):
-        # alias for port()
-        return self.port(1)
-
-    def set_port_s21(self):
-        # alias for port()
-        return self.port(2)
-
     def resume(self):
         # resumes the sweeping
         # usage: resume
@@ -190,11 +164,15 @@ class AcquisitionMixin:
                 self.print_message("ERROR: scan() requires more than 0 points to return data")
                 return self.error_byte_return()
             # bound against the device point limit (library-side check).
-            # README: device reports "range 51 -201" with the upper end NOT
-            # inclusive, so maxPoints (201) itself is rejected -> use >=.
-            if int(pts) >= self.maxPoints:
-                self.print_message("ERROR: scan() pts must be less than device maxPoints (" +
-                                   str(self.maxPoints) + ", upper end not inclusive)")
+            # Some models report the top of the range as NOT selectable
+            # (exclusive). pointEndInclusive (from the model envelope) decides
+            # whether maxPoints itself is a valid count.
+            over_limit = (int(pts) > self.maxPoints) if self.pointEndInclusive \
+                else (int(pts) >= self.maxPoints)
+            if over_limit:
+                bound_note = ("<=" if self.pointEndInclusive else "<") + str(self.maxPoints)
+                self.print_message("ERROR: scan() pts must be " + bound_note +
+                                   " for this device model")
                 return self.error_byte_return()
             if int(outmask) not in [0, 1, 2, 3, 4, 5, 6, 7]:
                 self.print_message("ERROR: scan() outmask options are integers 0-7")

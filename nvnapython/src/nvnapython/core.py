@@ -25,6 +25,13 @@ import serial.tools.list_ports  # COM search method wants full path
 import re
 import time  # noqa: F401  (used by binary read helper)
 
+from .constants import (
+    MODELS,
+    DEFAULT_MODEL,
+    SERIAL_TIMEOUT_S,
+    SERIAL_POLL_INTERVAL_S,
+)
+
 from ._commands.acquisition import AcquisitionMixin
 from ._commands.calibration import CalibrationMixin
 from ._commands.markers_traces import MarkersTracesMixin
@@ -49,18 +56,17 @@ class nanoVNA(
         self.verboseEnabled = False
         self.returnErrorByte = False
 
-        # VARS BELOW HERE will be largely replaced with device class config calls
-        # this will allow for user settings and device presets
+        # serial read tuning (see constants.py for the meaning of each)
+        self.serialTimeout = SERIAL_TIMEOUT_S
+        self.serialPollInterval = SERIAL_POLL_INTERVAL_S
 
-        # select device vars - defaults seeded for NanoVNA-F V2
-        # device params
-        self.maxPoints = 201            # device caps the sweep at 201 points
-        # device frequency range for error checking
-        self.minVNADeviceFreq = 50e3    # 50 kHz
-        self.maxVNADeviceFreq = 3e9     # 3 GHz
-        # screen
-        self.screenWidth = 800
-        self.screenHeight = 480
+        # VARS BELOW HERE are seeded from the per-model envelope in constants.py.
+        # select_existing_device() swaps in a different model's values; the
+        # set_* override methods below tweak individual bounds for debug / clones.
+
+        # seed library-side device bounds from the default model
+        self._apply_model(MODELS[DEFAULT_MODEL])
+        self.deviceModel = DEFAULT_MODEL
 
 ######################################################################
 # Error and information printout
@@ -105,27 +111,46 @@ class nanoVNA(
 # WARNING: these DO NOT change the settings on the DEVICE. just the library.
 ######################################################################
 
+    def _apply_model(self, model_dict):
+        # Internal: copy a per-model envelope (from constants.MODELS) into the
+        # instance attributes the validation code reads. Kept in one place so
+        # __init__ and select_existing_device stay in sync.
+        self.maxPoints = model_dict["max_points"]
+        self.pointEndInclusive = model_dict["point_end_inclusive"]
+        self.minVNADeviceFreq = model_dict["min_freq_hz"]
+        self.maxVNADeviceFreq = model_dict["max_freq_hz"]
+        self.screenWidth = model_dict["screen_width"]
+        self.screenHeight = model_dict["screen_height"]
+        self.numMarkers = model_dict["num_markers"]
+        self.numTraces = model_dict["num_traces"]
+        self.numCalSlots = model_dict["num_cal_slots"]
+        self.numPresetSlots = model_dict["num_preset_slots"]
+
     def select_existing_device(self, nanoVNAModel):
-        # uses pre-set config values for known models.
-        # nanoVNAModel must be one of the following:
-        #   "NANOVNA_F_V2"
-        # This sets the library-side error-checking bounds ONLY. It does not
-        # talk to the device. Mirrors the tsapython direct-attribute approach
-        # rather than an external config/pandas layer.
+        # Seed the library-side error-checking bounds from a known model preset
+        # in constants.MODELS (e.g. "NANOVNA_F_V2", "NANOVNA_H4").
+        # This sets the LIBRARY bounds ONLY; it does not talk to the device.
+        # To add a model, add an entry to constants.MODELS -- no code change here.
         model = str(nanoVNAModel).upper()
 
-        if model == "NANOVNA_F_V2":
-            self.maxPoints = 201
-            self.minVNADeviceFreq = 50e3    # 50 kHz
-            self.maxVNADeviceFreq = 3e9     # 3 GHz
-            self.screenWidth = 800
-            self.screenHeight = 480
-            self.print_message("device bounds set for NanoVNA-F V2")
+        if model in MODELS:
+            self._apply_model(MODELS[model])
+            self.deviceModel = model
+            self.print_message("device bounds set for " + model)
             return True
 
         self.print_message("ERROR: '" + str(nanoVNAModel) +
-                            "' is not a known preset. bounds unchanged.")
+                            "' is not a known preset. Known models: " +
+                            ", ".join(sorted(MODELS.keys())) + ". bounds unchanged.")
         return False
+
+    def get_device_model(self):
+        # returns the currently selected model preset name
+        return self.deviceModel
+
+    def list_known_models(self):
+        # returns the list of model names available in constants.MODELS
+        return sorted(MODELS.keys())
 
     def load_custom_config(self, configFile):
         # TODO: for loading modified or other devices working on the same firmware
@@ -165,6 +190,21 @@ class nanoVNA(
 
     def get_screen_size(self):
         return self.screenWidth, self.screenHeight
+
+    # serial read tuning
+    def set_serial_timeout(self, seconds):
+        # max idle seconds to wait for the 'ch>' prompt during a read
+        self.serialTimeout = float(seconds)
+
+    def get_serial_timeout(self):
+        return self.serialTimeout
+
+    def set_serial_poll_interval(self, seconds):
+        # sleep between in_waiting checks while awaiting the next chunk
+        self.serialPollInterval = float(seconds)
+
+    def get_serial_poll_interval(self):
+        return self.serialPollInterval
 
 ######################################################################
 # Serial management and message processing
@@ -237,31 +277,41 @@ class nanoVNA(
         return msgbytes
 
     def get_serial_return(self):
-        # while there's a buffer, read in the returned message.
-        # reads up to the 'ch>' device prompt.
+        # Read the device reply, accumulating until the 'ch>' prompt arrives.
+        #
+        # The device terminates every reply with the prompt 'ch>'. USB CDC
+        # delivers data in chunks with gaps between them, so 'in_waiting'
+        # momentarily reading 0 does NOT mean the reply is complete -- it just
+        # means the next chunk hasn't landed yet. We therefore loop until the
+        # accumulated buffer ENDS WITH the prompt, with a wall-clock timeout so a
+        # missing prompt (or a disconnect, e.g. after reset) cannot hang forever.
+        #
         # buffer reading lineage:
         #   https://groups.io/g/nanovna-users (screen capture / serial read threads)
 
+        import time
+        prompt = b'ch>'
         buffer = bytes()
-        while True:
-            if self.ser.in_waiting > 0:
-                buffer += self.ser.read(self.ser.in_waiting)
-                try:
-                    # split the stream to take a chunk at a time;
-                    # get up to '>' of the prompt
-                    complete = buffer[:buffer.index(b'>') + 1]
-                    # leave the rest in buffer
-                    buffer = buffer[buffer.index(b'ch>') + 1:]
-                except ValueError:
-                    # prompt not in the buffer yet; keep looping
-                    continue
-                except Exception as err:
-                    self.print_message("ERROR: exception thrown while reading serial")
-                    self.print_message(err)
-                    return None
-                break
+        deadline = time.time() + self.serialTimeout
 
-        return bytearray(complete)
+        while True:
+            waiting = self.ser.in_waiting
+            if waiting > 0:
+                buffer += self.ser.read(waiting)
+                # the full reply is done once the prompt is at the end
+                if buffer.endswith(prompt):
+                    break
+                # reset the deadline whenever we make progress
+                deadline = time.time() + self.serialTimeout
+            else:
+                # no data right now; the device may still be sending. Wait a
+                # beat and re-check rather than busy-spinning or bailing early.
+                if time.time() > deadline:
+                    self.print_message("WARNING: serial read timed out waiting for prompt")
+                    break
+                time.sleep(self.serialPollInterval)
+
+        return bytearray(buffer)
 
     def clean_return(self, data):
         # removes 1) the echoed command up to and including the first '\r\n',
