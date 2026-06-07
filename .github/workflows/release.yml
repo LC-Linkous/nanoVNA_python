@@ -1,27 +1,9 @@
-# Build and publish nvnapython to PyPI on a version tag.
-#
-# Trigger: push a tag like 'v2.0.0'. The workflow builds the sdist + wheel with
-# uv (matching the uv_build backend in pyproject.toml), runs the hardware-free
-# test suite as a gate, then publishes to PyPI using Trusted Publishing (OIDC) --
-# no API token is stored in the repo.
-#
-# One-time setup on PyPI: add this repo as a Trusted Publisher for the
-# 'nvnapython' project (PyPI -> project -> Settings -> Publishing), naming this
-# workflow file (release.yml) and the 'pypi' environment below.
-#
-# To cut a release:
-#   1. bump version in pyproject.toml
-#   2. git tag v2.0.0 && git push origin v2.0.0
-
-name: release
+name: Publish to PyPI
 
 on:
-  push:
-    tags:
-      - "v*"
-
-permissions:
-  contents: read
+  release:
+    types: [published]
+  workflow_dispatch:        # allows manual runs from the Actions tab
 
 jobs:
   test:
@@ -33,17 +15,13 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Set up Python
-        run: uv python install 3.12
-
       - name: Install package with test extras
-        run: uv pip install --system -e ".[test]"
+        run: uv pip install --system -e "nvnapython[test]"   # project lives in the nvnapython/ subdirectory
 
       - name: Run hardware-free tests
-        run: pytest -m "not hardware" -q
+        run: pytest -m "not hardware" -q nvnapython/tests
 
   build:
-    name: build distributions
     needs: test
     runs-on: ubuntu-latest
     steps:
@@ -52,26 +30,23 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Build sdist and wheel
-        run: uv build
+      - name: Build package
+        run: uv build nvnapython          # project lives in the nvnapython/ subdirectory
 
-      - name: Upload build artifacts
+      - name: Store distributions
         uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: dist/
+          path: nvnapython/dist/          # uv writes dist/ inside the project dir
 
   publish:
-    name: publish to PyPI
     needs: build
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/project/nvnapython/
+    environment: pypi          # must match the environment in your PyPI publisher config
     permissions:
-      id-token: write   # required for Trusted Publishing (OIDC)
+      id-token: write          # REQUIRED for trusted publishing (OIDC)
     steps:
-      - name: Download build artifacts
+      - name: Download distributions
         uses: actions/download-artifact@v4
         with:
           name: dist
