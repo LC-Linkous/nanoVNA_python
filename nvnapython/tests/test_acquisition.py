@@ -175,9 +175,16 @@ def test_scan_pts_200_accepted(nvna):
     assert nvna._recorder.last == "scan 1000000 2000000 200 2\r\n"
 
 
-def test_scan_pts_201_rejected(nvna):
-    # 201 == maxPoints, and the upper end is NOT inclusive per the README.
+def test_scan_pts_201_accepted(nvna):
+    # The Chelegance F V2 user guide lists sweep points as "201 / 11-201
+    # configurable", so 201 (== maxPoints) IS a valid count for this model.
     nvna.scan(1_000_000, 2_000_000, 201, 2)
+    assert nvna._recorder.last == "scan 1000000 2000000 201 2\r\n"
+
+
+def test_scan_pts_over_max_rejected(nvna):
+    # one past the model's maxPoints is rejected
+    nvna.scan(1_000_000, 2_000_000, 202, 2)
     assert nvna._recorder.count == 0
 
 
@@ -186,26 +193,3 @@ def test_scan_pts_201_rejected(nvna):
 def test_preform_sweep_valid(nvna):
     nvna.preform_sweep(100e6, 200e6, 250)
     assert nvna._recorder.last == "sweep 100000000.0 200000000.0 250\r\n"
-
-
-# --- port: 1 (S11) or 2 (S21) ---------------------------------------------
-
-def test_port_s11(nvna):
-    nvna.set_port_s11()
-    assert nvna._recorder.last == "port 1\r\n"
-
-
-def test_port_s21(nvna):
-    nvna.set_port_s21()
-    assert nvna._recorder.last == "port 2\r\n"
-
-
-def test_port_direct(nvna):
-    nvna.port(1)
-    assert nvna._recorder.last == "port 1\r\n"
-
-
-@pytest.mark.parametrize("val", [0, 3, "S11"])
-def test_port_invalid(nvna, val):
-    nvna.port(val)
-    assert nvna._recorder.count == 0

@@ -76,12 +76,11 @@ def nvna(recorder):
             assert nvna._recorder.last == 'scan 1000000 2000000 101 2\\r\\n'
     """
     dev = nanoVNA()
-    # Seed library-side device bounds (NanoVNA-F V2 defaults).
-    dev.maxPoints = 201
-    dev.minVNADeviceFreq = 50e3
-    dev.maxVNADeviceFreq = 3e9
-    dev.screenWidth = 800
-    dev.screenHeight = 480
+    # Seed library-side device bounds from the SAME source the library uses
+    # (constants.MODELS via select_existing_device), so the fixture can never
+    # drift from what the real library enforces. A fresh nanoVNA() already
+    # defaults to the F V2 model; this makes the choice explicit for the tests.
+    dev.select_existing_device("NANOVNA_F_V2")
 
     dev.nanoVNA_serial = recorder
     dev._recorder = recorder          # handy backref for assertions

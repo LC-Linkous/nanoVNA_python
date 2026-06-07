@@ -54,3 +54,27 @@ def test_select_existing_device_known_model(nvna):
     """Known preset returns True and sets bounds; unknown returns False."""
     assert nvna.select_existing_device("NANOVNA_F_V2") is True
     assert nvna.select_existing_device("NOT_A_REAL_MODEL") is False
+
+
+def test_select_h4_swaps_bounds(nvna):
+    """Selecting the H4 preset pulls that model's envelope from constants."""
+    assert nvna.select_existing_device("NANOVNA_H4") is True
+    assert nvna.maxPoints == 101
+    assert nvna.minVNADeviceFreq == 10e3
+    assert nvna.maxVNADeviceFreq == 1.5e9
+    assert nvna.get_screen_size() == (320, 480)
+    assert nvna.get_device_model() == "NANOVNA_H4"
+
+
+def test_list_known_models(nvna):
+    """The known-model list includes the seeded presets."""
+    models = nvna.list_known_models()
+    assert "NANOVNA_F_V2" in models
+    assert "NANOVNA_H4" in models
+    assert "NANOVNA_GENERIC" in models
+
+
+def test_default_model_is_f_v2(nvna):
+    """A fresh instance is seeded to the F V2 default."""
+    assert nvna.get_device_model() == "NANOVNA_F_V2"
+    assert nvna.maxPoints == 201

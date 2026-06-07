@@ -127,3 +127,16 @@ def test_marker_set_index_out_of_bounds(nvna):
     # maxPoints seeded at 201; an index well past it is rejected.
     nvna.set_marker_position(1, 5000)
     assert nvna._recorder.count == 0
+
+
+def test_trace_id_zero_valid(nvna):
+    # Device help dump shows 'trace [0|1|2|3|all]' -- traces are 0-indexed,
+    # so trace 0 is valid (confirmed against NanoVNA-F V2 firmware).
+    nvna.trace(0, "logmag")
+    assert nvna._recorder.last == "trace 0 logmag\r\n"
+
+
+def test_trace_id_four_invalid(nvna):
+    # 4 is out of range for 0-indexed 0..3
+    nvna.trace(4, "logmag")
+    assert nvna._recorder.count == 0
