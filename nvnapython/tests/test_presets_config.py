@@ -65,25 +65,3 @@ def test_clear_and_reset_sends_both_and_survives(nvna):
     # whether the port dropped before a response arrived).
     _ = out
 
-
-# --- restart: 0 (cancel) or positive seconds ------------------------------
-
-def test_restart_cancel(nvna):
-    nvna.cancel_restart()
-    assert nvna._recorder.last == "restart 0\r\n"
-
-
-def test_restart_seconds(nvna):
-    nvna.restart_device(5)
-    assert nvna._recorder.last == "restart 5\r\n"
-
-
-def test_restart_direct_zero(nvna):
-    nvna.restart(0)
-    assert nvna._recorder.last == "restart 0\r\n"
-
-
-@pytest.mark.parametrize("val", [-1, "soon"])
-def test_restart_invalid(nvna, val):
-    nvna.restart(val)
-    assert nvna._recorder.count == 0

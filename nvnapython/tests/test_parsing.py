@@ -15,8 +15,17 @@ import pytest
 # ---------------------------------------------------------------------------
 
 def test_clean_return_strips_command_and_prompt(parsing_nvna):
+    # clean_return strips the echoed command, the trailing prompt block, and the
+    # '\r\n' separating payload from prompt. Result is the bare payload.
     raw = bytearray(b"info\r\nModel: NanoVNA-F_V2\r\nch>")
-    assert parsing_nvna.clean_return(raw) == bytearray(b"Model: NanoVNA-F_V2\r")
+    assert parsing_nvna.clean_return(raw) == bytearray(b"Model: NanoVNA-F_V2")
+
+
+def test_clean_return_real_double_prompt_with_space(parsing_nvna):
+    # The real device tail is 'ch> \r\nch> ' (trailing space, doubled prompt).
+    # clean_return must strip the whole trailing prompt block.
+    raw = bytearray(b"version\r\n0.3.0\r\nch> \r\nch> ")
+    assert parsing_nvna.clean_return(raw) == bytearray(b"0.3.0")
 
 
 def test_clean_return_no_chevron_left_intact(parsing_nvna):
@@ -26,8 +35,13 @@ def test_clean_return_no_chevron_left_intact(parsing_nvna):
 
 def test_clean_return_s11_pairs(parsing_nvna):
     # S11 scan output: whitespace-separated real/imag pairs, one per line.
-    raw = bytearray(b"scan 1000000 2000000 2 2\r\n1.0 0.0\r\n0.5 -0.5\r\nch>")
-    assert parsing_nvna.clean_return(raw) == bytearray(b"1.0 0.0\r\n0.5 -0.5\r")
+    # Real framing has the doubled 'ch> \r\nch> ' tail with trailing spaces.
+    raw = bytearray(b"scan 1000000 2000000 2 2\r\n1.0 0.0 \r\n0.5 -0.5 \r\nch> \r\nch> ")
+    cleaned = parsing_nvna.clean_return(raw)
+    # the payload pairs survive; the trailing prompt block is gone
+    assert b"ch>" not in cleaned
+    pairs = [ln.split() for ln in cleaned.decode().split("\r\n") if ln.strip()]
+    assert pairs == [["1.0", "0.0"], ["0.5", "-0.5"]]
 
 
 # ---------------------------------------------------------------------------

@@ -35,9 +35,10 @@ pytestmark = pytest.mark.hardware
 def device():
     from nvnapython import nanoVNA
     dev = nanoVNA()
-    dev.set_verbose(False)
+    dev.set_verbose(True)             # LOUD: show why connect succeeds/fails under pytest
     dev.set_error_byte_return(True)
     found, connected = dev.autoconnect()
+    print(f"\n  [FIXTURE] autoconnect -> found={found} connected={connected}")
     if not connected:
         pytest.skip("no NanoVNA device connected")
     try:
@@ -163,3 +164,40 @@ def test_capture_help_reference(device):
     print(_decode(raw))
     print("  [REPORT] ===== end =====")
     assert raw
+
+
+# ===========================================================================
+# QUESTION: cwfreq units. The help dump says {frequency(Hz)} but the bare
+# 'cwfreq' usage string says {frequency(KHz)}. Settle which the device acts on.
+#
+# Approach: set cwfreq to 100000, then read the sweep state. If the device
+# treated it as Hz, the CW point is 100 kHz; if kHz, it's 100 MHz. We read back
+# via 'sweep' (which reports start/stop/points) after putting the device in CW
+# mode with 'sweep cw {f}', and via the marker frequency. This is non-
+# destructive (no save), and we restore the original sweep afterward.
+# ===========================================================================
+
+def test_probe_cwfreq_units(device):
+    # capture the current sweep so we can restore it
+    before = _decode(device.command("sweep"))
+    print(f"\n  [REPORT] sweep before: {before!r}")
+
+    # set CW to 100000 in whatever unit the device uses
+    device.command("cwfreq 100000")
+    after_cw = _decode(device.command("cwfreq"))   # bare -> usage string w/ unit
+    print(f"  [REPORT] cwfreq usage string: {after_cw!r}")
+
+    # read marker frequency, which reflects the active point in CW
+    mk = _decode(device.command("marker"))
+    print(f"  [REPORT] marker after cwfreq 100000: {mk!r}")
+    print("  [REPORT] INTERPRET: if the reported freq ~= 100000 (Hz) the unit is "
+          "Hz; if ~= 100000000 (100 MHz) the unit is kHz.")
+
+    # restore the original sweep if we could parse it (start stop points)
+    parts = before.split()
+    if len(parts) >= 3 and all(p.lstrip("-").isdigit() for p in parts[:3]):
+        device.command(f"sweep {parts[0]} {parts[1]} {parts[2]}")
+        print(f"  [REPORT] restored sweep to {parts[0]} {parts[1]} {parts[2]}")
+    else:
+        print("  [REPORT] could not parse prior sweep to restore; recall a preset "
+              "manually if needed")

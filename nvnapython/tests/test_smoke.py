@@ -97,3 +97,4 @@ def test_disconnect_clears_handle():
     dev.ser = _FakeClosable()
     dev.disconnect()
     assert dev.ser is None
+
