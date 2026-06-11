@@ -64,6 +64,82 @@ class DisplayUIMixin:
         # alias for capture()
         return self.capture()
 
+    def decode_capture(self, data_bytes, width=None, height=None,
+                       byte_order="little"):
+        # Decode a raw NanoVNA screen-capture buffer (BGR565) into a flat list
+        # of (r, g, b) tuples, row-major, length width*height.
+        #
+        # The NanoVNA panel is BGR565: within each 16-bit pixel, bits 15-11 are
+        # BLUE, bits 10-5 GREEN, bits 4-0 RED. (This is the documented swap from
+        # the tinySA's RGB565 -- red and blue are exchanged.)
+        #
+        # byte_order selects how the two bytes of each pixel combine into the
+        # 16-bit value:
+        #   "little" -> value = lo | (hi << 8) using struct '<H' (the order the
+        #               original example used; the library default)
+        #   "big"    -> value = (hi << 8) | lo
+        # The true on-wire order is being confirmed on hardware (see
+        # tests/test_hardware_capture_probe.py, which reports BOTH decodes).
+        # Exposed as a parameter so flipping the default is a one-line change
+        # once settled, with no caller rewrite.
+        #
+        # width/height default to the library's seeded screen size for the
+        # selected model (self.screenWidth/Height), so a correctly-sized buffer
+        # needs no explicit dimensions.
+        #
+        # Returns a list of (r, g, b) ints 0-255. Raises ValueError if the
+        # buffer is too short for width*height pixels (no silent padding -- a
+        # short buffer means the capture read was truncated and the caller
+        # should know).
+        if width is None:
+            width = self.screenWidth
+        if height is None:
+            height = self.screenHeight
+
+        buf = bytes(data_bytes) if data_bytes is not None else b""
+        num_pixels = width * height
+        needed = num_pixels * 2
+        if len(buf) < needed:
+            raise ValueError(
+                "capture buffer too short: have " + str(len(buf)) +
+                " bytes, need " + str(needed) + " for " + str(width) + "x" +
+                str(height) + " (the binary read was likely truncated; see "
+                "decode_capture / capture notes)")
+        if len(buf) > needed:
+            buf = buf[:needed]  # trailing console prompt etc.; keep image bytes
+
+        fmt_char = "<" if byte_order == "little" else ">"
+        try:
+            import struct
+            values = struct.unpack(fmt_char + str(num_pixels) + "H", buf)
+        except Exception:
+            # pure-Python fallback if struct is somehow unavailable.
+            # For each pixel the two bytes are buf[2i], buf[2i+1]. Little-endian
+            # means the FIRST byte is the low byte (value = b0 | b1<<8); big-
+            # endian means the first byte is the high byte (value = b0<<8 | b1).
+            values = []
+            for i in range(num_pixels):
+                b0, b1 = buf[2 * i], buf[2 * i + 1]
+                values.append((b0 | (b1 << 8)) if byte_order == "little"
+                              else ((b0 << 8) | b1))
+
+        pixels = []
+        for v in values:
+            blue = ((v & 0xF800) >> 11) * 255 // 31
+            green = ((v & 0x07E0) >> 5) * 255 // 63
+            red = (v & 0x001F) * 255 // 31
+            pixels.append((red, green, blue))
+        return pixels
+
+    def capture_to_pixels(self, width=None, height=None, byte_order="little"):
+        # Convenience: issue capture() and decode in one call. NOTE: capture()
+        # currently uses the TEXT serial path, which can truncate the binary
+        # framebuffer at a 'ch>'-looking byte run; if decode_capture raises on a
+        # short buffer, read the raw bytes off the port directly (see the
+        # screen_capture example) until a binary capture path lands.
+        raw = self.capture()
+        return self.decode_capture(raw, width, height, byte_order)
+
     def lcd(self, X, Y, W, H, COL):
         # draws a rectangle on the active area of the screen.
         # usage: lcd X Y W H COL

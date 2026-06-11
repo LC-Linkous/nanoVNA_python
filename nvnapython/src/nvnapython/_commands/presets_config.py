@@ -91,36 +91,3 @@ class PresetsConfigMixin:
     def reset_device(self):
         # alias for reset()
         return self.reset()
-
-    def restart(self, val=0):
-        # restarts the device after the specified number of seconds.
-        # usage: restart {seconds}
-        # example return: empty bytearray
-        #
-        # NOTE (per README): this has not worked on the NanoVNA-F V2 in testing,
-        # but appears to work on some devices. 0 seconds cancels a pending restart.
-        try:
-            seconds = int(val)
-        except (TypeError, ValueError):
-            self.print_message("ERROR: restart() takes an integer number of seconds (0 to cancel)")
-            return self.error_byte_return()
-
-        if seconds < 0:
-            self.print_message("ERROR: restart() takes vals 0 or greater")
-            return self.error_byte_return()
-
-        writebyte = 'restart ' + str(seconds) + '\r\n'
-        msgbytes = self.nanoVNA_serial(writebyte, printBool=False)
-        if seconds == 0:
-            self.print_message("restart cancelled.")
-        else:
-            self.print_message("restarting the device in " + str(seconds) + " seconds.")
-        return msgbytes
-
-    def restart_device(self, val):
-        # alias for restart()
-        return self.restart(val)
-
-    def cancel_restart(self):
-        # alias for restart() - sends 'restart 0' to cancel a pending restart
-        return self.restart(0)

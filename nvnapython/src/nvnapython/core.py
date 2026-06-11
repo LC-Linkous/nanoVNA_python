@@ -242,6 +242,7 @@ class nanoVNA(
     def connect(self, port, timeout=1):
         # attempt connection to provided port.
         # returns: True if successful, False otherwise
+        # Single explicit attempt: open the port, succeed or fail, report.
         try:
             self.ser = serial.Serial(port=port, timeout=timeout)
             return True
@@ -249,17 +250,6 @@ class nanoVNA(
             self.ser = None
             self.print_message("ERROR: cannot open port at " + str(port))
             self.print_message(err)
-            # On Windows a PermissionError or a FileNotFoundError on a port that
-            # DID enumerate almost always means the port is already open in
-            # another process (another script/REPL still holding it, a serial
-            # monitor, or a prior run that did not disconnect). Point at that.
-            if isinstance(err, (PermissionError, FileNotFoundError)):
-                self.print_message(
-                    "HINT: the port was detected but could not be opened. It is "
-                    "likely held by another process (another Python session, a "
-                    "serial monitor, or a previous run that did not disconnect). "
-                    "Close other programs using the port, or unplug/replug the "
-                    "device, then try again.")
             return False
 
     def disconnect(self):
@@ -319,8 +309,12 @@ class nanoVNA(
             waiting = self.ser.in_waiting
             if waiting > 0:
                 buffer += self.ser.read(waiting)
-                # the full reply is done once the prompt is at the end
-                if buffer.endswith(prompt):
+                # The full reply is done once the prompt is at the end. The
+                # device emits the prompt as 'ch> ' WITH A TRAILING SPACE (and
+                # sometimes a trailing '\r\n'), so a bare buffer.endswith(b'ch>')
+                # never matches and the read falls through to the timeout. Strip
+                # trailing whitespace before testing for the prompt.
+                if buffer.rstrip().endswith(prompt):
                     break
                 # reset the deadline whenever we make progress
                 deadline = time.time() + self.serialTimeout
@@ -335,16 +329,36 @@ class nanoVNA(
         return bytearray(buffer)
 
     def clean_return(self, data):
-        # removes 1) the echoed command up to and including the first '\r\n',
-        # and 2) the trailing 'ch>' prompt.
+        # Normalize the raw device reply into just the payload.
+        #
+        # The device frames every reply as:
+        #     <echoed command>\r\n<payload>\r\nch> \r\nch>
+        # i.e. the command is echoed first, then the payload, then the console
+        # prompt 'ch>' -- which on this firmware appears WITH A TRAILING SPACE
+        # and often TWICE ('ch> \r\nch> '). The old logic stripped only a single
+        # bare 'ch>' at the very end, so the real trailing prompt block survived.
+        #
+        # 1) strip the echoed command: up to and including the first '\r\n'.
+        # 2) strip the trailing prompt block: remove any run of trailing 'ch>'
+        #    prompts (with surrounding whitespace), then the '\r\n' that
+        #    separated the payload from that block.
         first_newline_index = data.find(b'\r\n')
         if first_newline_index != -1:
-            # skip past the first '\r\n'
             data = data[first_newline_index + 2:]
-        if data.endswith(b'ch>'):
-            # remove the trailing prompt (4 bytes: the '\n' before it + 'ch>')
-            data = data[:-4]
-        return data
+
+        # drop a trailing run of 'ch>' prompts and their surrounding whitespace
+        head = data
+        while True:
+            stripped = head.rstrip()
+            if stripped.endswith(b'ch>'):
+                head = stripped[:-3]
+                continue
+            break
+
+        # drop the single '\r\n' that separated the payload from the prompt block
+        if head.endswith(b'\r\n'):
+            head = head[:-2]
+        return head
 
 ######################################################################
 # Reusable format checking functions

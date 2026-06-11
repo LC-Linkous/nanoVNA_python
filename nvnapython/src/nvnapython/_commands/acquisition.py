@@ -14,8 +14,16 @@
 class AcquisitionMixin:
     def cwfreq(self, val):
         # Set the continuous wave (CW) frequency.
-        # usage: cwfreq {freq(Hz)}
+        # usage: cwfreq {frequency}
         # example return: bytearray(b'')
+        #
+        # UNITS WARNING (unresolved): the device is self-contradictory about
+        # units. The 'help' dump says 'cwfreq {frequency(Hz)}', but calling
+        # 'cwfreq' with no argument prints 'usage: cwfreq {frequency(KHz)}'.
+        # Until confirmed on hardware which unit the device actually acts on,
+        # this passes the value through UNCHANGED -- the caller is responsible
+        # for supplying whatever unit their firmware expects. Do not assume Hz.
+        # See tests/test_hardware_audit.py for the probe to settle this.
         #
         # FIXED (vs original): the command string was 'cwfreq'+str(val) with no
         # space ('cwfreq150000000'), and the isinstance(int) gate rejected
@@ -24,9 +32,10 @@ class AcquisitionMixin:
         if isinstance(val, (int, float)):
             writebyte = 'cwfreq ' + str(val) + '\r\n'
             msgbytes = self.nanoVNA_serial(writebyte, printBool=False)
-            self.print_message("setting CW frequency to " + str(val))
+            self.print_message("setting CW frequency to " + str(val) +
+                               " (units per device firmware; see cwfreq notes)")
         else:
-            self.print_message("ERROR: cwfreq() requires an int or float value in Hz")
+            self.print_message("ERROR: cwfreq() requires an int or float value")
             msgbytes = self.error_byte_return()
         return msgbytes
 
