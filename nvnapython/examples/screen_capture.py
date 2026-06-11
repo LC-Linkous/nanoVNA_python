@@ -1,100 +1,136 @@
 #! /usr/bin/python3
-
 ##-------------------------------------------------------------------------------\
-#   nanoVNA_python
+#   nanoVNA_python (nvnapython)
 #   './examples/screen_capture.py'
-#   This is an example of using the autoconnect feature. 
-#   The detected device info is returned and the serial disconnected
+#   Autoconnect, grab the screen framebuffer, decode it (BGR565), and save a PNG.
+#   Requires the [plotting] extra for Pillow (numpy optional):
+#       pip install -e ".[plotting]"
 #
-#   Last update: June 30, 2025
+#   This keeps the original example's intent but:
+#     * uses the installed package import (from nvnapython import nanoVNA),
+#     * decodes color via the LIBRARY now (nvna.decode_capture), so the BGR565
+#       logic lives in one place instead of being copy-pasted per example,
+#     * reads the raw binary directly off the port instead of the text path,
+#       because 'capture' is BINARY and the text path can truncate it at a
+#       'ch>'-looking byte run (the original's 1-byte padding hack was treating
+#       that symptom),
+#     * never mutates an immutable bytes object (the original .append(0) would
+#       AttributeError if capture() returned bytes).
+#
+#   NOTE (intentional tinySA cross-reference): the NanoVNA panel is BGR565,
+#   whereas the tinySA used RGB565 -- red and blue are SWAPPED. decode_capture
+#   handles the swap; if you port a tinySA decoder you must account for it.
+#
+#   OPEN ITEM: the per-pixel byte order (little- vs big-endian) is being
+#   confirmed on hardware -- see tests/test_hardware_capture_probe.py, which
+#   prints both decodes. decode_capture defaults to little-endian (matching the
+#   original example); pass byte_order="big" to compare.
 ##-------------------------------------------------------------------------------\
 
-# import NanoVNA library
-# (installed package: pip install -e . from the repo root)
-from nvnapython import nanoVNA 
+import sys
+import os
+import time
+import argparse
 
-# imports FOR THE EXAMPLE
-import numpy as np
-from PIL import Image
-import struct
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-def convert_data_to_image(data_bytes, width, height):
-    # calculate the expected data size
-    expected_size = width * height * 2  # 16 bits per pixel (BGR565), 2 bytes per pixel
-    
-    # error checking
-    if len(data_bytes) < expected_size:
-        print(f"Data size is too small. Expected {expected_size} bytes, got {len(data_bytes)} bytes.")
-        if len(data_bytes) == expected_size - 1:
-            print("Data size is 1 byte smaller than expected. Adding 1 byte of padding.")
-            data_bytes.append(0)
+from nvnapython import nanoVNA          # noqa: E402
+
+
+def read_capture_raw(nvna, settle_s=0.4, idle_giveup_s=1.0):
+    # Issue 'capture' and read raw bytes off the port, bypassing the text prompt
+    # framing (which is wrong for binary). Read until the stream goes idle, then
+    # strip a trailing console-prompt run if the device appended one.
+    ser = nvna.ser
+    ser.reset_input_buffer()
+    ser.reset_output_buffer()
+    ser.write(b"capture\r\n")
+
+    buf = bytearray()
+    last = time.time()
+    time.sleep(settle_s)
+    while True:
+        waiting = ser.in_waiting
+        if waiting:
+            buf += ser.read(waiting)
+            last = time.time()
+        elif time.time() - last > idle_giveup_s:
+            break
         else:
-            return
-    elif len(data_bytes) > expected_size:
-        data_bytes = data_bytes[:expected_size]
-        print("Data is larger than the expected size. truncating. check data.")
-    
-    num_pixels = width * height
-    
-    # Unpack as little-endian 16-bit values
-    x = struct.unpack(f"<{num_pixels}H", data_bytes)
-    arr = np.array(x, dtype=np.uint32)
-    
+            time.sleep(0.01)
 
-    # Convert BGR565 -> RGBA.
-    # The NanoVNA-F packs each pixel as 16-bit BGR565: blue in the high 5 bits,
-    # green in the middle 6, red in the low 5. (The tinySA_python library used
-    # RGB565 instead -- this byte-order swap is the key device difference.)
-    # The masks below are read with BGR565 channel positions, so the variable
-    # names match the bits they extract.
-    blue = ((arr & 0xF800) >> 11) * 255 // 31    # Blue in high bits (15-11)
-    green = ((arr & 0x07E0) >> 5) * 255 // 63    # Green in middle bits (10-5)
-    red = (arr & 0x001F) * 255 // 31             # Red in low bits (4-0)
-    
-    # Combine into RGBA format (Alpha = 255 for opaque)
-    arr_rgba = 0xFF000000 + (red << 16) + (green << 8) + blue
-    
-    # reshape array to match the image dimensions
-    arr_rgba = arr_rgba.reshape((height, width))
-    
-    # create and save the image
-    img = Image.frombuffer('RGBA', (width, height), arr_rgba.tobytes(), 'raw', 'RGBA', 0, 1)
-    img.save("example_screen_capture_demo.png")
-    img.show()
-
-# create a new nanoVNA object    
-nvna = nanoVNA()
-
-# set the return message preferences 
-nvna.set_verbose(True) #detailed messages
-nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+    tail = bytes(buf)
+    while True:
+        s = tail.rstrip()
+        if s.endswith(b"ch>"):
+            tail = s[:-3]
+            continue
+        break
+    if tail.endswith(b"\r\n"):
+        tail = tail[:-2]
+    return tail
 
 
-# attempt to autoconnect
-found_bool, connected_bool = nvna.autoconnect()
+def main():
+    ap = argparse.ArgumentParser(description="Capture the NanoVNA screen to PNG.")
+    ap.add_argument("--port", default=None)
+    ap.add_argument("--out", default="example_screen_capture_demo.png")
+    ap.add_argument("--byte-order", choices=["little", "big"], default="little",
+                    help="BGR565 per-pixel byte order (default little; see notes)")
+    ap.add_argument("--show", action="store_true", help="display the image too")
+    args = ap.parse_args()
 
-# if port found and connected, then complete task(s) and disconnect
-if connected_bool == True: 
+    try:
+        from PIL import Image
+    except ImportError:
+        print('Pillow not installed: pip install -e ".[plotting]"')
+        return 1
+
+    nvna = nanoVNA()
+    nvna.set_verbose(True)
+    nvna.set_error_byte_return(True)
+
+    found_bool, connected_bool = nvna.autoconnect() if not args.port \
+        else (True, nvna.connect(args.port))
+    if not connected_bool:
+        print("ERROR: could not connect to port")
+        return 1
     print("device connected")
 
-    
-    msg = nvna.get_info() 
-    print(msg)
-    
-    # get the trace data
-    data_bytes = nvna.capture() 
-    # Printed out for fun. 
-    # You do NOT need to print this to use it
-    print(data_bytes)
+    try:
+        print(nvna.get_info())
 
-    # disconnect device since we're not using it
-    nvna.disconnect()
+        # device's own resolution -> image size (don't hardcode 800x480)
+        res = bytes(nvna.resolution()).decode("utf-8", errors="replace").strip()
+        try:
+            width, height = (int(x) for x in res.split(","))
+        except Exception:
+            width, height = nvna.get_screen_size()   # model default
+        print(f"resolution: {width}x{height}")
 
-    # processing after disconnect (just for this example)
-    # test with 800x480 resolution for NanoVNA-F V2
-    convert_data_to_image(data_bytes, 800, 480) 
+        raw = read_capture_raw(nvna)
+        expected = width * height * 2
+        print(f"captured {len(raw)} bytes (expected {expected})")
+    finally:
+        nvna.disconnect()
 
-else:
-    print("ERROR: could not connect to port")
+    # decode via the LIBRARY (single source of the BGR565 logic)
+    try:
+        pixels = nvna.decode_capture(raw, width, height, byte_order=args.byte_order)
+    except ValueError as e:
+        print(f"decode failed: {e}")
+        print("The binary read was likely truncated. Re-run; if it persists, the "
+              "device may need a dedicated binary capture path in the library.")
+        return 1
+
+    img = Image.new("RGB", (width, height))
+    img.putdata(pixels)
+    img.save(args.out)
+    print(f"saved {args.out}")
+    if args.show:
+        img.show()
+    return 0
 
 
+if __name__ == "__main__":
+    raise SystemExit(main())

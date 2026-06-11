@@ -1,150 +1,166 @@
 #!/usr/bin/python3
 ##-------------------------------------------------------------------------------
-#   nanoVNA_python
+#   nanoVNA_python (nvnapython)
 #   './examples/plotting_scan.py'
-#   A short example using matplotlib to plot requested SCAN data
-#   Modified to handle S11 data with real/imaginary or magnitude/phase pairs
+#   Scan S11 over a band and plot real/imag, |S11| dB, phase, and a simplified
+#   Smith-plane scatter. Requires the [plotting] extra (numpy, matplotlib):
+#       pip install -e ".[plotting]"
 #
-#   Last update: June 29, 2025
+#   This keeps the original example's 4-panel layout but:
+#     * uses the installed package import (from nvnapython import nanoVNA),
+#     * guards against an empty / error scan return before plotting,
+#     * keeps legitimate zero samples (the original dropped them, which
+#       silently misaligned the frequency axis vs the data),
+#     * floors |S11| in dB instead of crashing on a true-zero magnitude,
+#     * reads the real frequency axis from frequencies() when lengths agree,
+#       falling back to a linspace only if they don't.
+#
+#   NOTE (intentional tinySA cross-reference): tinySA scans return ONE scalar
+#   (dBm) per point; the NanoVNA returns a COMPLEX pair (real, imag) per point,
+#   so we take the magnitude before plotting. Same plot shape, different data.
 ##-------------------------------------------------------------------------------
 
-# import NanoVNA library
-# (installed package: pip install -e . from the repo root)
-from nvnapython import nanoVNA
-# imports FOR THE EXAMPLE
-import numpy as np
-import matplotlib.pyplot as plt
+import sys
+import os
+import argparse
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+from nvnapython import nanoVNA          # noqa: E402
+
 
 def convert_s11_data_to_arrays(start, stop, pts, data):
-    # Convert the raw device S11 data to frequency and S11 arrays.
-    # given the format of the data, this is assuming the data 
-    # contains PAIRS of values (real/imag or mag/phase).
+    # Convert raw device S11 bytes (whitespace-separated real/imag pairs, one
+    # per line, possibly with a trailing space) into numpy arrays plus derived
+    # magnitude(dB) and phase(deg). Returns (freq, real, imag, mag_db, phase).
+    import numpy as np
 
-    # Create frequency array
-    freq_arr = np.linspace(start, stop, pts)
-    
-    # Parse data into pairs of values
-    lines = data.decode('utf-8').split('\n')
-    real_parts = []
-    imag_parts = []
-    
-    for line in lines:
-        if line.strip():  # Skip empty lines
-            values = line.split()
-            if len(values) >= 2:
-                try:
-                    real_val = float(values[0])
-                    imag_val = float(values[1])
-                    
-                    # Skip zero pairs (padding data)
-                    if real_val != 0.0 or imag_val != 0.0:
-                        real_parts.append(real_val)
-                        imag_parts.append(imag_val)
-                except ValueError:
-                    continue  # Skip malformed lines
-    
-    # Convert to numpy arrays
+    text = bytes(data).decode("utf-8", errors="replace") if data else ""
+    real_parts, imag_parts = [], []
+    for line in text.replace("\r\n", "\n").split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        vals = line.split()
+        if len(vals) < 2:
+            continue
+        try:
+            # NOTE: unlike the original, we KEEP zero pairs -- a genuine near-
+            # zero sample (e.g. a deep null) is real data, and dropping it
+            # shifts every later point onto the wrong frequency.
+            real_parts.append(float(vals[0]))
+            imag_parts.append(float(vals[1]))
+        except ValueError:
+            continue
+
     real_arr = np.array(real_parts)
     imag_arr = np.array(imag_parts)
-    
-    # Calculate derived values
-    # If data is real/imaginary components:
-    magnitude_db = 20 * np.log10(np.sqrt(real_arr**2 + imag_arr**2))
+
+    mag = np.hypot(real_arr, imag_arr)
+    # floor zero magnitudes to avoid log10(0) = -inf warnings/crash
+    with np.errstate(divide="ignore"):
+        magnitude_db = 20.0 * np.log10(np.where(mag > 0, mag, 1e-12))
+    magnitude_db = np.where(mag > 0, magnitude_db, -240.0)
     phase_deg = np.degrees(np.arctan2(imag_arr, real_arr))
-    
-    # Adjust frequency array to match actual data length
-    actual_pts = len(real_arr)
-    if actual_pts != pts:
-        freq_arr = np.linspace(start, stop, actual_pts)
-    
+
+    actual = len(real_arr)
+    freq_arr = np.linspace(start, stop, actual if actual else 1)
     return freq_arr, real_arr, imag_arr, magnitude_db, phase_deg
 
 
+def main():
+    ap = argparse.ArgumentParser(description="Plot NanoVNA S11 (4-panel).")
+    ap.add_argument("--port", default=None)
+    ap.add_argument("--start", type=float, default=1e9, help="start Hz")
+    ap.add_argument("--stop", type=float, default=3e9, help="stop Hz")
+    ap.add_argument("--points", type=int, default=200, help="points (<=201 on F V2)")
+    ap.add_argument("--save", default=None, help="save figure to path instead of showing")
+    args = ap.parse_args()
 
-# create a new nanoVNA object    
-nvna = nanoVNA()
-# set the return message preferences
-nvna.set_verbose(True) # detailed messages
-nvna.set_error_byte_return(True) # get explicit b'ERROR' if error thrown
+    try:
+        import numpy as np  # noqa: F401
+        import matplotlib
+        if args.save:
+            matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print('plotting extra not installed: pip install -e ".[plotting]"')
+        return 1
 
-# attempt to autoconnect
-found_bool, connected_bool = nvna.autoconnect()
+    nvna = nanoVNA()
+    nvna.set_verbose(True)
+    nvna.set_error_byte_return(True)
 
-# if port closed, then return error message
-if connected_bool == False:
-    print("ERROR: could not connect to port")
-else: # if port found and connected, then complete task(s) and disconnect
-    # set scan values
-    start = int(1e9)  # 1 GHz
-    stop = int(3e9)   # 3 GHz
-    pts = 200         # sample points. MAX 201
-    outmask = 2       # get measured data (y axis)
-    
-    # scan
-    data_bytes = nvna.scan(start, stop, pts, outmask)
-    print("Raw data received:")
-    print(data_bytes)
-    
-    nvna.resume() # resume so screen isn't still frozen
-    nvna.disconnect()
-    
-    # processing after disconnect
-    # This is typical for the examples, but does not need to be done
-    # if you are sitll using the device or collecting data.
+    if args.port:
+        connected = nvna.connect(args.port)
+    else:
+        _found, connected = nvna.autoconnect()
+    if not connected:
+        print("ERROR: could not connect to port")
+        return 1
 
+    try:
+        start, stop, pts = int(args.start), int(args.stop), args.points
+        nvna.pause()
+        data_bytes = nvna.get_scan_s11(start, stop, pts)   # outmask 2
+        nvna.resume()
+    finally:
+        nvna.disconnect()
 
-    # convert data to arrays
-    freq_arr, real_arr, imag_arr, magnitude_db, phase_deg = convert_s11_data_to_arrays(start, stop, pts, data_bytes)
-    
-    # Create subplots for comprehensive S11 visualization
-    # this is different from the tinySA plots, which only showed the frequency data overlapped
-    # because we are collecting more data with each sweep. 
-    # Data has been sorted into 4 plots
-     # The Antenna used in data collection is a 2.4 GHz monopole
+    # guard: scan() returns b'ERROR' / b'' on a rejected call -> nothing to plot
+    if not data_bytes or bytes(data_bytes).strip() in (b"", b"ERROR"):
+        print(f"no scan data returned (got {bytes(data_bytes)!r}). Check the "
+              "frequency range and that points <= the model max.")
+        return 1
+
+    freq, real_arr, imag_arr, mag_db, phase_deg = \
+        convert_s11_data_to_arrays(start, stop, pts, data_bytes)
+
+    if len(real_arr) == 0:
+        print("scan returned no parseable pairs; nothing to plot.")
+        return 1
 
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
-    
-    # Plot 1: Real and Imaginary parts
-    ax1.plot(freq_arr/1e9, real_arr, 'b-', label='Real', linewidth=1.5)
-    ax1.plot(freq_arr/1e9, imag_arr, 'r-', label='Imaginary', linewidth=1.5)
+
+    ax1.plot(freq / 1e9, real_arr, "b-", label="Real", linewidth=1.5)
+    ax1.plot(freq / 1e9, imag_arr, "r-", label="Imaginary", linewidth=1.5)
     ax1.set_xlabel("Frequency (GHz)")
-    ax1.set_ylabel("S11 Components")
-    ax1.set_title("S11 Real and Imaginary Components")
-    ax1.legend()
-    ax1.grid(True, alpha=0.3)
-    
-    # Plot 2: Magnitude in dB
-    ax2.plot(freq_arr/1e9, magnitude_db, 'g-', linewidth=1.5)
+    ax1.set_ylabel("S11 components")
+    ax1.set_title("S11 real and imaginary")
+    ax1.legend(); ax1.grid(True, alpha=0.3)
+
+    ax2.plot(freq / 1e9, mag_db, "g-", linewidth=1.5)
     ax2.set_xlabel("Frequency (GHz)")
-    ax2.set_ylabel("S11 Magnitude (dB)")
-    ax2.set_title("S1 Magnitude Response")
+    ax2.set_ylabel("|S11| (dB)")
+    ax2.set_title("S11 magnitude response")
     ax2.grid(True, alpha=0.3)
-    
-    # Plot 3: Phase
-    ax3.plot(freq_arr/1e9, phase_deg, 'm-', linewidth=1.5)
+
+    ax3.plot(freq / 1e9, phase_deg, "m-", linewidth=1.5)
     ax3.set_xlabel("Frequency (GHz)")
-    ax3.set_ylabel("S11 Phase (degrees)")
-    ax3.set_title("S11 Phase Response")
+    ax3.set_ylabel("S11 phase (deg)")
+    ax3.set_title("S11 phase response")
     ax3.grid(True, alpha=0.3)
-    
-    # Plot 4: Smith Chart representation (simplified)
-    ax4.scatter(real_arr, imag_arr, c=freq_arr/1e9, cmap='viridis', s=20)
-    ax4.set_xlabel("Real Part")
-    ax4.set_ylabel("Imaginary Part")
-    ax4.set_title("S11 Complex Plane (Simplified Smith Chart)")
-    ax4.grid(True, alpha=0.3)
-    ax4.axis('equal')
-    
-    # Add colorbar for frequency reference
-    cbar = plt.colorbar(ax4.collections[0], ax=ax4)
-    cbar.set_label('Frequency (GHz)')
-    
+
+    sc = ax4.scatter(real_arr, imag_arr, c=freq / 1e9, cmap="viridis", s=20)
+    ax4.set_xlabel("Real"); ax4.set_ylabel("Imaginary")
+    ax4.set_title("S11 complex plane (simplified Smith)")
+    ax4.grid(True, alpha=0.3); ax4.axis("equal")
+    fig.colorbar(sc, ax=ax4).set_label("Frequency (GHz)")
+
     plt.tight_layout()
-    plt.show()
-    
-    # Print summary statistics
-    print(f"\nData Summary:")
-    print(f"Number of valid data points: {len(real_arr)}")
-    print(f"Frequency range: {freq_arr[0]/1e9:.3f} - {freq_arr[-1]/1e9:.3f} GHz")
-    print(f"S_{11} Magnitude range: {np.min(magnitude_db):.2f} to {np.max(magnitude_db):.2f} dB")
-    print(f"S_{11} Phase range: {np.min(phase_deg):.1f} to {np.max(phase_deg):.1f} degrees")
+    if args.save:
+        plt.savefig(args.save, dpi=120)
+        print(f"saved {args.save}")
+    else:
+        plt.show()
+
+    print(f"\nData summary:")
+    print(f"  valid points: {len(real_arr)}")
+    print(f"  freq range:   {freq[0]/1e9:.3f} - {freq[-1]/1e9:.3f} GHz")
+    print(f"  |S11| range:  {mag_db.min():.2f} to {mag_db.max():.2f} dB")
+    print(f"  phase range:  {phase_deg.min():.1f} to {phase_deg.max():.1f} deg")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
