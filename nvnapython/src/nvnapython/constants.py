@@ -72,6 +72,11 @@ MARKER_ACTIONS = ("on", "off", "peak")
 #   NanoVNA-F V2 : Chelegance "Nano VNA-F V2 User Guide Rev 2.0" (50kHz-3GHz,
 #                  sweep points 201 / 11-201 configurable, 4 traces, 4 markers,
 #                  calibration storage 7, 800x480 IPS).
+#   NanoVNA-F V3 : Chelegance NanoVNA-F V3 docs + on-hardware confirmation
+#                  (50kHz floor per docs; 6 GHz hardware ceiling -- the firmware
+#                  'info' banner says 6.3 GHz but returns all-zero samples above
+#                  ~6 GHz; sweep points 51-801 confirmed via the scan command,
+#                  menu range 101-801; 800x480, 4 traces, 4 markers, 7 cal slots).
 #   NanoVNA-H4   : Hugen / GigaParts / R&L listings (10kHz-1.5GHz firmware floor,
 #                  101 fixed scan points, 320x480 3.95" TFT, 4 traces, 4 markers,
 #                  5 setting saves).
@@ -84,6 +89,27 @@ MODELS = {
         "min_freq_hz": 50e3,        # 50 kHz
         "max_freq_hz": 3e9,         # 3 GHz
         "max_points": 201,          # 11-201 configurable per the user guide
+        "point_end_inclusive": True,
+        "screen_width": 800,
+        "screen_height": 480,
+        "num_markers": 4,
+        "num_traces": 4,
+        "num_cal_slots": 7,
+        "num_preset_slots": 7,
+    },
+    "NANOVNA_F_V3": {
+        "min_freq_hz": 50e3,        # 50 kHz (per the docs; the device is
+                                    #         permissive below this, so a 50 kHz
+                                    #         floor never wrongly rejects a
+                                    #         documented-range scan)
+        "max_freq_hz": 6e9,         # 6 GHz HARDWARE ceiling. The firmware 'info'
+                                    #       banner reports 6.3 GHz, but the device
+                                    #       returns all-zero samples above ~6 GHz
+                                    #       (confirmed on hardware + Chelegance
+                                    #       docs); 6 GHz is the real measurable max.
+        "max_points": 801,          # 51..801 confirmed on hardware via scan
+                                    #        (menu range is 101-801; the scan
+                                    #        command accepts down to 51)
         "point_end_inclusive": True,
         "screen_width": 800,
         "screen_height": 480,
