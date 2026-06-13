@@ -1,44 +1,53 @@
 #! /usr/bin/python3
-
 ##-------------------------------------------------------------------------------\
-#   nanoVNA_python
+#   nanoVNA_python (nvnapython)
 #   './examples/hello_world.py'
-#   This is a minimal example of how to use the nvnapython library.
-#   Install the package first (from the repo root: pip install -e .),
-#   then this script can import it from anywhere.
+#   The smallest nvnapython example: connect, print device info, disconnect.
+#   Standalone single file -- run straight from the repo without installing:
+#       python examples/hello_world.py
+#       python examples/hello_world.py --port COM6      # explicit port
 #
-#   Last update: June 29, 2025
+#   disconnect() is in a finally block so the COM port is always released, even
+#   if something raises (a leaked handle is the usual cause of the next run
+#   failing with "no device connected" on Windows).
+#
 ##-------------------------------------------------------------------------------\
 
-# import nanoVNA library
-# (installed package: pip install -e . from the repo root)
-from nvnapython import nanoVNA 
+import sys
+import os
+import argparse
 
-#import for EXAMPLE
-import matplotlib.pyplot as plt
+# Make 'src' importable when running straight from the repo without installing.
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-# create a new nanoVNA object    
-nvna = nanoVNA()
-
-# set the return message preferences 
-nvna.set_verbose(True) #detailed messages
-nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+from nvnapython import nanoVNA          # noqa: E402
 
 
-# attempt to autoconnect
-found_bool, connected_bool = nvna.autoconnect()
+def main():
+    ap = argparse.ArgumentParser(description="Minimal NanoVNA connect + info example.")
+    ap.add_argument("--port", default=None,
+                    help="serial port (e.g. COM6 or /dev/ttyACM0). Omit to autoconnect.")
+    args = ap.parse_args()
 
-# if port found and connected, then complete task(s) and disconnect
-if connected_bool == True: 
-    print("device connected")
+    nvna = nanoVNA()
+    nvna.set_verbose(True)              # detailed messages
+    nvna.set_error_byte_return(True)    # explicit b'ERROR' on a rejected command
 
-    # print the device info
-    msg = nvna.info() 
-    print(msg)
+    if args.port:
+        connected = nvna.connect(args.port)
+    else:
+        _found, connected = nvna.autoconnect()
+    if not connected:
+        print("ERROR: no NanoVNA connected. Pass --port, free the port, or replug.")
+        return 1
 
-    # disconnect because we don't need the serial connection anymore
-    nvna.disconnect()
-else:
-    print("ERROR: could not connect to port")
+    try:
+        print("device connected")
+        print(nvna.info())
+    finally:
+        nvna.disconnect()              # always release the port
+    return 0
 
 
+if __name__ == "__main__":
+    raise SystemExit(main())
