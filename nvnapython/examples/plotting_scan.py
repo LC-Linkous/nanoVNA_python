@@ -1,4 +1,17 @@
-#!/usr/bin/python3
+#! /usr/bin/python3
+##-------------------------------------------------------------------------------\
+#   nanoVNA_python (nvnapython)
+#   './examples/plotting_scan.py'
+#   Scan S11 over a band and plot real/imag, |S11| dB, phase, and a simplified
+#   Smith-plane scatter (4-panel). Requires the [plotting] extra:
+#       pip install -e ".[plotting]"
+#       python examples/plotting_scan.py --start 1e9 --stop 3e9 --points 200
+#
+#   NOTE (tinySA cross-reference): tinySA scans return one scalar (dBm) per point;
+#   the NanoVNA returns a COMPLEX pair per point, so we take the magnitude to plot.
+#
+##-------------------------------------------------------------------------------\
+
 ##-------------------------------------------------------------------------------
 #   nanoVNA_python (nvnapython)
 #   './examples/plotting_scan.py'
