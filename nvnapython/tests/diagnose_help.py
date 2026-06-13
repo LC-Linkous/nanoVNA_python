@@ -24,13 +24,6 @@ USAGE
     python diagnose_help.py --reps 10        # more repetitions to catch flakiness
     python diagnose_help.py --raw-timeout 5  # widen the read timeout for the probe
 
-WHAT TO SEND BACK
------------------
-The whole printed block. The decisive lines are, for each 'help' rep:
-    raw_len=...  timed_out=...  cleaned_len=...
-plus the raw_repr_head / raw_repr_tail on any rep where cleaned_len == 0.
-That tells us whether the bytes never arrived (read-loop fix) or arrived and
-were eaten by clean_return (cleaner fix).
 """
 
 import sys

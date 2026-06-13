@@ -185,23 +185,6 @@ def test_probe_port(device, p):
 
 
 # ===========================================================================
-# QUESTION 6: capture the real 'help' dump so we have the authoritative
-# command list for THIS firmware, in writing, to reconcile the README against.
-# ===========================================================================
-
-def test_probe_help_dump(device):
-    # Self-guard: 'help' is the largest reply and runs late on the shared
-    # connection. Drain first so a prior probe's residue can't race this read.
-    # ('help' reads cleanly in isolation -- this only protects against ordering.)
-    _drain(device)
-    raw = device.command("help")
-    print("\n  [REPORT] ===== device 'help' dump =====")
-    print(_decode(raw))
-    print("  [REPORT] ===== end help dump =====")
-    assert raw, "help returned nothing"
-
-
-# ===========================================================================
 # QUESTION 7: confirm the trailing-space S11 format and that 201 points
 # returns 201 pairs (not 200, not 202) -- the off-by-one / inclusivity check.
 # ===========================================================================

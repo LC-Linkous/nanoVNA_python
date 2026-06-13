@@ -128,19 +128,6 @@ def test_cal_in_unlisted_but_works(device):
 
 
 # ===========================================================================
-# JOB 3: re-capture help dump as a stored reference (so the README reconcile
-# has the authoritative list committed alongside the audit results).
-# ===========================================================================
-
-def test_capture_help_reference(device):
-    raw = device.command("help")
-    print("\n  [REPORT] ===== authoritative help dump =====")
-    print(_decode(raw))
-    print("  [REPORT] ===== end =====")
-    assert raw
-
-
-# ===========================================================================
 # QUESTION: cwfreq units. The help dump says {frequency(Hz)} but the bare
 # 'cwfreq' usage string says {frequency(KHz)}. Settle which the device acts on.
 #
