@@ -1,104 +1,109 @@
-#!/usr/bin/python3
-##-------------------------------------------------------------------------------
-#   nanoVNA_python
-#   './examples/plotting_scan.py'
-#   Scan and save data to .csv file. Records the data with the frequency based
-#   on the range of the scan()
+#! /usr/bin/python3
+##-------------------------------------------------------------------------------\
+#   nanoVNA_python (nvnapython)
+#   './examples/save_raw_to_csv.py'
+#   Scan S11 and save the RAW data (frequency, real, imaginary) to CSV -- no
+#   derived magnitude/phase, just the measured complex samples. Requires numpy.
+#       python examples/save_raw_to_csv.py
+#       python examples/save_raw_to_csv.py --start 1e9 --stop 3e9 --points 200
 #
-#   Last update: June 30, 2025
-##-------------------------------------------------------------------------------
+##-------------------------------------------------------------------------------\
 
-# import NanoVNA library
-# (installed package: pip install -e . from the repo root)
-from nvnapython import nanoVNA
-# imports FOR THE EXAMPLE
+import sys
+import os
 import csv
-import numpy as np
+import argparse
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+from nvnapython import nanoVNA          # noqa: E402
+
 
 def convert_s11_data_to_arrays(start, stop, pts, data):
-    # Convert the raw data so that the frequency, real, and imaginary are all stored.
+    # Parse raw S11 bytes into frequency/real/imaginary arrays. Genuine zero
+    # samples are KEPT (dropping a deep null misaligns the frequency axis).
+    import numpy as np
 
-    # Create frequency array
-    freq_arr = np.linspace(start, stop, pts)
-    
-    # Parse data into pairs of values (real/imaginary)
-    lines = data.decode('utf-8').split('\n')
-    real_parts = []
-    imag_parts = []
-    
-    for line in lines:
-        if line.strip():
-            values = line.split()
-            if len(values) >= 2:
-                try:
-                    real_val = float(values[0])
-                    imag_val = float(values[1])
-                    real_parts.append(real_val)
-                    imag_parts.append(imag_val)
-                except ValueError:
-                    continue
-    
-    # Convert to numpy arrays
+    text = bytes(data).decode("utf-8", errors="replace") if data else ""
+    real_parts, imag_parts = [], []
+    for line in text.replace("\r\n", "\n").split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        vals = line.split()
+        if len(vals) < 2:
+            continue
+        try:
+            real_parts.append(float(vals[0]))
+            imag_parts.append(float(vals[1]))
+        except ValueError:
+            continue
+
     real_arr = np.array(real_parts)
     imag_arr = np.array(imag_parts)
-    
-    # Adjust frequency array to match actual data length
-    actual_pts = len(real_arr)
-    if actual_pts != pts:
-        freq_arr = np.linspace(start, stop, actual_pts)
-    
+    actual = len(real_arr)
+    freq_arr = np.linspace(start, stop, actual if actual else 1)
     return freq_arr, real_arr, imag_arr
 
-# create a new nanoVNA object    
-nvna = nanoVNA()
-# set the return message preferences
-nvna.set_verbose(True) #detailed messages
-nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
 
-# attempt to autoconnect
-found_bool, connected_bool = nvna.autoconnect()
+def main():
+    ap = argparse.ArgumentParser(description="Save RAW NanoVNA S11 scan to CSV.")
+    ap.add_argument("--port", default=None, help="serial port. Omit to autoconnect.")
+    ap.add_argument("--start", type=float, default=1e9, help="start Hz")
+    ap.add_argument("--stop", type=float, default=3e9, help="stop Hz")
+    ap.add_argument("--points", type=int, default=200, help="points (<=201 on F V2)")
+    ap.add_argument("--out", default="s11_raw_data.csv", help="output CSV path")
+    args = ap.parse_args()
 
-# if port closed, then return error message
-if connected_bool == False:
-    print("ERROR: could not connect to port")
-else: 
-    # if port found and connected, then complete task(s) and disconnect
-    # the S11 (return loss) data is the default collection for this tutorial
-    print("Connected to nanoVNA - collecting S11 data...")
-    
-    # set scan values
-    start = int(1e9)  # 1 GHz
-    stop = int(3e9)   # 3 GHz
-    pts = 200         # sample points
-    outmask = 2       # get measured data 
-    
-    # scan for S11 data
-    data_bytes = nvna.scan(start, stop, pts, outmask)
-    print(f"Received {len(data_bytes)} bytes of S11 data")
+    try:
+        import numpy as np  # noqa: F401
+    except ImportError:
+        print("numpy not installed: pip install numpy")
+        return 1
 
-    nvna.resume() #resume so screen isn't still frozen
+    nvna = nanoVNA()
+    nvna.set_verbose(True)
+    nvna.set_error_byte_return(True)
 
-    # disconnect because in this example we're done reading from device
-    nvna.disconnect()
-    
-    # processing after disconnect
-    # convert data to 3 arrays: frequency, real, imaginary
+    if args.port:
+        connected = nvna.connect(args.port)
+    else:
+        _found, connected = nvna.autoconnect()
+    if not connected:
+        print("ERROR: no NanoVNA connected. Pass --port, free the port, or replug.")
+        return 1
+
+    try:
+        start, stop, pts = int(args.start), int(args.stop), args.points
+        print("Connected to NanoVNA - collecting S11 data...")
+        nvna.pause()
+        data_bytes = nvna.get_scan_s11(start, stop, pts)   # outmask 2
+        nvna.resume()
+        print(f"Received {len(data_bytes)} bytes of S11 data")
+    finally:
+        nvna.disconnect()
+
+    if not data_bytes or bytes(data_bytes).strip() in (b"", b"ERROR"):
+        print(f"no scan data returned (got {bytes(data_bytes)!r}). Check the range "
+              "and that points <= the model max.")
+        return 1
+
     freq_arr, real_arr, imag_arr = convert_s11_data_to_arrays(start, stop, pts, data_bytes)
-    
-    # Save the RAW data to CSV
-    filename = "s11_raw_data.csv"
-       
-    # Write out to csv: frequency, real, imaginary
-    with open(filename, 'w', newline='') as csvfile:
+
+    if len(real_arr) == 0:
+        print("scan returned no parseable pairs; nothing to save.")
+        return 1
+
+    with open(args.out, "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
-
-        # Write header row
-        writer.writerow(['Frequency_Hz', 'S11_Real', 'S11_Imaginary'])
-
-        # Write data rows (frequency, real, imaginary triplets)
+        writer.writerow(["Frequency_Hz", "S11_Real", "S11_Imaginary"])
         for freq, real, imag in zip(freq_arr, real_arr, imag_arr):
-            writer.writerow([f'{freq:.0f}', f'{real:.6f}', f'{imag:.6f}'])
+            writer.writerow([f"{freq:.0f}", f"{real:.6f}", f"{imag:.6f}"])
 
-    print(f"RAW S11 data saved to {filename}")
+    print(f"RAW S11 data saved to {args.out}")
     print(f"Total: {len(freq_arr)} data points saved")
-   
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
