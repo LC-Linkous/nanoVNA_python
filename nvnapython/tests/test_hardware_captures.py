@@ -207,7 +207,7 @@ def test_trace_dump_is_tab_delimited(dev):
 # ---------------------------------------------------------------------------
 
 def test_full_read_then_clean_on_real_capture():
-    from tests.conftest import FakePort
+    from tests.fakes import FakePort
     dev = nanoVNA()
     # genuine 'sweep' capture, including the echoed command the device sends back
     dev.ser = FakePort(b"sweep\r\n50000 3000000000 101\r\nch> \r\nch> ")

@@ -42,33 +42,6 @@ import pytest
 pytestmark = pytest.mark.hardware
 
 
-@pytest.fixture(scope="module")
-def device():
-    from nvnapython import nanoVNA
-    dev = nanoVNA()
-    dev.set_verbose(False)
-    dev.set_error_byte_return(True)
-    found, connected = dev.autoconnect()
-    if not connected:
-        pytest.skip("no NanoVNA device connected")
-    try:
-        yield dev
-    finally:
-        # restore a sane state and always release the port
-        try:
-            dev.command("recall 0")
-        except Exception:
-            pass
-        try:
-            dev.resume()
-        except Exception:
-            pass
-        try:
-            dev.disconnect()
-        except Exception:
-            pass
-
-
 def _decode(b):
     if not b:
         return ""

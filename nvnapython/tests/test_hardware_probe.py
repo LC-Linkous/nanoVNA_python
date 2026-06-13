@@ -23,6 +23,7 @@
 #   Author(s): Lauren Linkous
 ##--------------------------------------------------------------------------------------------------\
 
+import time
 import pytest
 
 pytestmark = pytest.mark.hardware
@@ -33,29 +34,6 @@ pytestmark = pytest.mark.hardware
 # the end. Per-test connect/disconnect was causing enumeration races (skips);
 # one connection for the whole session avoids hammering the port.
 # ---------------------------------------------------------------------------
-
-@pytest.fixture(scope="module")
-def device():
-    from nvnapython import nanoVNA
-    dev = nanoVNA()
-    dev.set_verbose(False)            # quiet; the probes do their own printing
-    dev.set_error_byte_return(True)   # explicit b'ERROR' so we can see rejects
-
-    found, connected = dev.autoconnect()
-    if not connected:
-        pytest.skip("no NanoVNA device connected")
-    try:
-        yield dev
-    finally:
-        try:
-            dev.resume()
-        except Exception:
-            pass
-        try:
-            dev.disconnect()
-        except Exception:
-            pass
-
 
 def _decode(b):
     """bytes/bytearray -> str for printing, tolerant of None/empty."""
@@ -72,6 +50,30 @@ def _looks_like_error(b):
     s = _decode(b).lower()
     return (b == bytearray(b"ERROR")) or ("not recognised" in s) or \
            ("not recognized" in s) or ("error" in s) or ("usage" in s)
+
+
+def _drain(device, settle=0.15):
+    """Settle the device and clear any stale bytes from the input buffer.
+
+    Some commands -- especially ones this firmware does NOT recognise (e.g.
+    'port') -- can respond slowly or leave the console output partially drained.
+    On the SHARED module-scoped connection these probes use, that residue can
+    race the NEXT command's read: reset_input_buffer() + write happen before the
+    stale reply has fully arrived, so get_serial_return() can return the leftover
+    tail (or nothing) instead of the new command's output. This was the cause of
+    the intermittent empty 'help' dump -- 'help' itself reads cleanly in
+    isolation (see diagnose_help.py), it was the preceding 'port' probe leaving
+    the port dirty.
+
+    Call this after any probe that sends a command expected to error/be
+    unrecognised, and as a guard before a large read on the shared connection.
+    """
+    time.sleep(settle)
+    try:
+        if device.ser is not None:
+            device.ser.reset_input_buffer()
+    except Exception:
+        pass
 
 
 # ===========================================================================
@@ -176,6 +178,10 @@ def test_probe_port(device, p):
     raw = device.command(f"port {p}")
     print(f"\n  [REPORT] 'port {p}': error={_looks_like_error(raw)}, "
           f"resp={_decode(raw)[:80]!r}")
+    # 'port' is not a real command on this firmware; it can leave the console
+    # output partially drained. Settle + flush so the next probe on the shared
+    # connection starts from a clean buffer.
+    _drain(device)
 
 
 # ===========================================================================
@@ -184,6 +190,10 @@ def test_probe_port(device, p):
 # ===========================================================================
 
 def test_probe_help_dump(device):
+    # Self-guard: 'help' is the largest reply and runs late on the shared
+    # connection. Drain first so a prior probe's residue can't race this read.
+    # ('help' reads cleanly in isolation -- this only protects against ordering.)
+    _drain(device)
     raw = device.command("help")
     print("\n  [REPORT] ===== device 'help' dump =====")
     print(_decode(raw))

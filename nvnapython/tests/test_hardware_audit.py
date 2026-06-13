@@ -31,32 +31,6 @@ import pytest
 pytestmark = pytest.mark.hardware
 
 
-@pytest.fixture(scope="module")
-def device():
-    from nvnapython import nanoVNA
-    dev = nanoVNA()
-    dev.set_verbose(True)             # LOUD: show why connect succeeds/fails under pytest
-    dev.set_error_byte_return(True)
-    found, connected = dev.autoconnect()
-    print(f"\n  [FIXTURE] autoconnect -> found={found} connected={connected}")
-    if not connected:
-        pytest.skip("no NanoVNA device connected")
-    try:
-        yield dev
-    finally:
-        # ALWAYS release the port, even if a test failed, errored, or the run
-        # was interrupted. Without the finally, a failing test leaves COM open
-        # and the port stays locked until the process dies.
-        try:
-            dev.resume()
-        except Exception:
-            pass
-        try:
-            dev.disconnect()
-        except Exception:
-            pass
-
-
 def _decode(b):
     if not b:
         return ""

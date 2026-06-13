@@ -43,24 +43,6 @@ import pytest
 pytestmark = pytest.mark.hardware
 
 
-@pytest.fixture(scope="module")
-def device():
-    from nvnapython import nanoVNA
-    dev = nanoVNA()
-    dev.set_verbose(False)
-    dev.set_error_byte_return(True)
-    found, connected = dev.autoconnect()
-    if not connected:
-        pytest.skip("no NanoVNA device connected")
-    try:
-        yield dev
-    finally:
-        try:
-            dev.disconnect()
-        except Exception:
-            pass
-
-
 def _read_raw_binary(dev, settle_s=0.4, idle_giveup_s=1.0):
     """
     Issue 'capture' and read the raw bytes off the port directly, WITHOUT the

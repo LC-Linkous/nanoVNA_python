@@ -22,31 +22,6 @@ import pytest
 pytestmark = pytest.mark.hardware
 
 
-@pytest.fixture
-def device():
-    """
-    Connect to a real NanoVNA for the duration of one test, then disconnect.
-    Skips (does not fail) if no device is detected, so `pytest -m hardware`
-    on a machine without hardware reports skips rather than errors.
-    """
-    from nvnapython import nanoVNA
-    dev = nanoVNA()
-    dev.set_verbose(True)
-    dev.set_error_byte_return(True)
-
-    found, connected = dev.autoconnect()
-    if not connected:
-        pytest.skip("no NanoVNA device connected")
-    try:
-        yield dev
-    finally:
-        # always release the port, even if the test failed or was interrupted
-        try:
-            dev.disconnect()
-        except Exception:
-            pass
-
-
 def test_info_nonempty(device):
     """A connected device returns non-empty info text."""
     info = device.info()
