@@ -282,6 +282,19 @@ class nanoVNA(
         msgbytes = self.get_serial_return()
         msgbytes = self.clean_return(msgbytes)
 
+        # Post-read straggler drain: belt-and-suspenders companion to the
+        # doubled-prompt handling in get_serial_return. On fast back-to-back
+        # commands, any residual tail bytes (e.g. the trailing space/newline
+        # after the second 'ch>') that arrive just after the read could
+        # otherwise sit in the buffer and be raced by the NEXT command. We sip
+        # them here so each call leaves the input buffer clean. This is cheap and
+        # bounded; if nothing is waiting it does effectively nothing.
+        try:
+            if self.ser.in_waiting:
+                self.ser.read(self.ser.in_waiting)
+        except Exception:
+            pass
+
         if printBool == True:
             print(msgbytes)  # overrides verbose for debug
 
@@ -296,6 +309,25 @@ class nanoVNA(
         # means the next chunk hasn't landed yet. We therefore loop until the
         # accumulated buffer ENDS WITH the prompt, with a wall-clock timeout so a
         # missing prompt (or a disconnect, e.g. after reset) cannot hang forever.
+        #
+        # DOUBLED-PROMPT TAIL (firmware-dependent): current NanoVNA-F V2 firmware
+        # emits the prompt TWICE at the end of every reply -- 'ch> \r\nch> ' (see
+        # tests/readme_capture.md, captured verbatim). If we stop the instant the
+        # FIRST 'ch>' appears, the bytes of the SECOND prompt are still arriving
+        # and get left in the OS input buffer. For SLOW replies (a 1.4s scan)
+        # that tail lands harmlessly before the next command. But for FAST,
+        # instant-returning commands fired back to back (version, sweep, data,
+        # the help dump), the next nanoVNA_serial's reset_input_buffer() races
+        # those leftover bytes -- producing the intermittent empty/truncated
+        # reads seen on the help probe and in rapid command loops.
+        #
+        # FIX (confirmed on hardware via diagnose_fastcmd.py): once the prompt is
+        # seen, do a SHORT bounded settle to absorb a possible second/doubled
+        # prompt, then return. This consumes the whole tail on doubled-prompt
+        # firmware WITHOUT requiring two prompts -- so single-prompt firmware (or
+        # a future change) still returns promptly via the settle timeout instead
+        # of hanging. The companion post-read drain in nanoVNA_serial mops up any
+        # straggler bytes that arrive after the settle window.
         #
         # buffer reading lineage:
         #   https://groups.io/g/nanovna-users (screen capture / serial read threads)
@@ -312,9 +344,24 @@ class nanoVNA(
                 # The full reply is done once the prompt is at the end. The
                 # device emits the prompt as 'ch> ' WITH A TRAILING SPACE (and
                 # sometimes a trailing '\r\n'), so a bare buffer.endswith(b'ch>')
-                # never matches and the read falls through to the timeout. Strip
-                # trailing whitespace before testing for the prompt.
+                # never matches. Strip trailing whitespace before testing.
                 if buffer.rstrip().endswith(prompt):
+                    # Prompt seen. This firmware usually sends a SECOND prompt
+                    # right behind it; give that tail a brief, bounded chance to
+                    # arrive and consume it, so nothing is left in the buffer for
+                    # the next command to race. We do NOT require a second prompt
+                    # -- if none comes within the settle window, we return what we
+                    # have (handles single-prompt firmware without a long stall).
+                    settle_deadline = time.time() + max(self.serialPollInterval * 5,
+                                                        0.05)
+                    while time.time() < settle_deadline:
+                        if self.ser.in_waiting:
+                            buffer += self.ser.read(self.ser.in_waiting)
+                            # if a full second prompt has now landed, we're done
+                            if buffer.count(prompt) >= 2:
+                                break
+                        else:
+                            time.sleep(self.serialPollInterval)
                     break
                 # reset the deadline whenever we make progress
                 deadline = time.time() + self.serialTimeout
