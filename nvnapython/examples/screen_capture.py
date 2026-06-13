@@ -8,12 +8,6 @@
 #       python examples/screen_capture.py
 #       python examples/screen_capture.py --byte-order big   # compare byte order
 #
-#   capture() now reads the framebuffer via the library's LENGTH-DRIVEN binary
-#   path (read until width*height*2 bytes arrive), so it no longer truncates the
-#   way the old text-prompt read did -- a short read used to make the image
-#   "wrap" and scramble colors. Decoding goes through nvna.decode_capture so the
-#   BGR565 logic lives in one place.
-#
 #   NOTE (tinySA cross-reference): the NanoVNA panel is BGR565; the tinySA used
 #   RGB565 (red/blue swapped). decode_capture handles the NanoVNA ordering.
 #
