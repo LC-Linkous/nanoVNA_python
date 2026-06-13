@@ -21,7 +21,7 @@ import time
 import pytest
 
 from nvnapython import nanoVNA
-from tests.conftest import FakePort
+from tests.fakes import FakePort
 
 
 # ---------------------------------------------------------------------------
