@@ -1,37 +1,50 @@
 #! /usr/bin/python3
-
 ##-------------------------------------------------------------------------------\
-#   nanoVNA_python
+#   nanoVNA_python (nvnapython)
 #   './examples/using_autoconnect.py'
-#   This is an example of using the autoconnect feature. 
-#   The detected device info is returned and the serial disconnected
+#   Demonstrates autoconnect(): scan the serial ports for a NanoVNA-class device,
+#   connect to the first match, report what was found, and disconnect.
 #
-#   Last update: June 18, 2025
+#   autoconnect() returns (found, connected): found = a matching USB VID:PID was
+#   seen; connected = the port actually opened. They can differ (found but busy).
+#       python examples/using_autoconnect.py
+#
 ##-------------------------------------------------------------------------------\
 
-# import nanoVNA library
-# (installed package: pip install -e . from the repo root)
-from nvnapython import nanoVNA 
+import sys
+import os
+import argparse
 
-# create a new nanoVNA object    
-nvna = nanoVNA()
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-# set the return message preferences 
-nvna.set_verbose(True) #detailed messages
-nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+from nvnapython import nanoVNA          # noqa: E402
 
 
-# attempt to autoconnect
-found_bool, connected_bool = nvna.autoconnect()
+def main():
+    argparse.ArgumentParser(description="NanoVNA autoconnect demo.").parse_args()
 
-# if port found and connected, then complete task(s) and disconnect
-if connected_bool == True: 
-    print("device connected")
+    nvna = nanoVNA()
+    nvna.set_verbose(True)              # so you can see which port it checks
+    nvna.set_error_byte_return(True)
 
-    msg = nvna.get_info() 
-    print(msg)
-    
+    found, connected = nvna.autoconnect()
 
-    nvna.disconnect()
-else:
-    print("ERROR: could not connect to port")
+    if not found:
+        print("no NanoVNA-class device (USB VID:PID 0483:5740) was found on any port.")
+        print("If yours enumerates differently, connect() to the port explicitly.")
+        return 1
+    if not connected:
+        print("a device was FOUND but could NOT be opened (port busy or permissions?).")
+        print("Close other programs using the port; on Linux check dialout group.")
+        return 1
+
+    try:
+        print("device connected")
+        print(nvna.get_info())
+    finally:
+        nvna.disconnect()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
