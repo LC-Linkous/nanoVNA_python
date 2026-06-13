@@ -12,8 +12,6 @@ import pytest
 # --- fixed-string commands ------------------------------------------------
 
 @pytest.mark.parametrize("method,expected", [
-    ("capture", "capture\r\n"),
-    ("capture_screen", "capture\r\n"),
     ("LCD_ID", "LCD_ID\r\n"),
     ("get_LCD_ID", "LCD_ID\r\n"),
     ("resolution", "resolution\r\n"),
@@ -27,6 +25,74 @@ import pytest
 def test_fixed_string_commands(nvna, method, expected):
     getattr(nvna, method)()
     assert nvna._recorder.last == expected
+
+
+# --- capture: BINARY path (length-driven read, not the text command path) ---
+# capture() deliberately bypasses nanoVNA_serial/clean_return: it writes
+# 'capture\r\n' directly and reads exactly width*height*2 bytes via
+# get_binary_return. So it is NOT a recorder command -- it is exercised with a
+# FakePort preloaded with a fake framebuffer.
+
+ECHO = b"capture\r\n"   # the command echo the device sends before the image
+
+
+def test_capture_reads_full_binary_frame():
+    from nvnapython.core import nanoVNA
+    from tests.fakes import FakePort
+
+    dev = nanoVNA()
+    # use a tiny screen so the expected frame is small and explicit
+    dev.set_screen_size(4, 2)                 # 4*2*2 = 16 image bytes
+    frame = bytes(range(16))                  # the "framebuffer"
+    # real stream = echo + image + trailing prompt; capture() must strip echo
+    # and prompt and return exactly the image, correctly aligned.
+    dev.ser = FakePort(ECHO + frame + b"ch> \r\nch> ")
+
+    raw = dev.capture()                       # width/height default to 4x2
+    assert len(raw) == 16                     # exactly the image
+    assert bytes(raw) == frame                # content intact AND aligned (echo
+    #                                           stripped -> not shifted by 9 bytes)
+
+
+def test_capture_writes_capture_command():
+    from nvnapython.core import nanoVNA
+    from tests.fakes import FakePort
+
+    dev = nanoVNA()
+    dev.set_screen_size(2, 2)                 # 8 bytes
+    dev.ser = FakePort(ECHO + bytes(8) + b"ch> ")
+    dev.capture()
+    # the command actually written to the port is 'capture\r\n'
+    assert dev.ser.written and dev.ser.written[-1] == b"capture\r\n"
+
+
+def test_capture_strips_echo_no_shift():
+    # explicit regression test for the 9-byte echo misalignment: a frame of
+    # known increasing bytes must come back starting at byte 0, not at the echo.
+    from nvnapython.core import nanoVNA
+    from tests.fakes import FakePort
+
+    dev = nanoVNA()
+    dev.set_screen_size(8, 1)                 # 16 image bytes
+    frame = bytes(range(100, 116))            # distinctive, non-zero
+    dev.ser = FakePort(ECHO + frame + b"ch> \r\nch> ")
+    raw = dev.capture()
+    assert bytes(raw) == frame                # first image byte is 100, not echo
+    assert raw[0] == 100                       # would be ord('c')=99 if shifted
+
+
+def test_capture_short_read_returns_what_it_got():
+    from nvnapython.core import nanoVNA
+    from tests.fakes import FakePort
+
+    dev = nanoVNA()
+    dev.set_serial_timeout(0.05)              # bail fast in these no-data waits
+    dev.set_serial_poll_interval(0.005)
+    dev.set_screen_size(100, 100)             # expects 20000 bytes
+    # echo present so the echo-read succeeds, then only 4 image bytes arrive
+    dev.ser = FakePort(ECHO + b"\x01\x02\x03\x04")
+    raw = dev.capture()
+    assert len(raw) == 4                      # returns what it got, no hang/crash
 
 
 # --- beep: on/off ---------------------------------------------------------
