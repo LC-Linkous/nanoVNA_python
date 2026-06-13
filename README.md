@@ -15,20 +15,29 @@
 
 ## AN UNOFFICIAL Python API for the NanoVNA Device Series
 
-A non-GUI Python API for the NanoVNA series of vector network analyzers. This repository uses official resources and documentation but is NOT endorsed by any official NanoVNA product or company. See the [references](#references) section for further reading, and the [NanoVNA resources](https://nanovna.com/) for device features.
+A non-GUI Python API for the NanoVNA series of vector network analyzers. 
 
-This library covers most documented commands for the NanoVNA device series. The documentation (after the examples) is sorted by the serial command for the device, with usage examples provided. While some error checking exists in both the device and the library, it is not exhaustive. It is strongly advised to read the official documentation before scripting with your NanoVNA device. Operating the device experimentally or without referencing the official documents runs the risk of **damaging your device or connected equipment**.
+This repository uses official resources and documentation but is NOT endorsed by the official NanoVNA product or company. See the [references](#references) section for further reading. See the [official NanoVNA resources](https://nanovna.com/) and the [active user group](https://groups.io/g/nanovna-users/) for device features.
+
+This library covers most of the documented commands for the NanoVNA device series. The documentation (after the examples) is sorted by the serial command for the device, with usage examples provided. While some error checking exists in both the device and the library, it is not exhaustive. It is strongly advised to read the official documentation before scripting with your NanoVNA device. Operating the device experimentally or without referencing the official documents runs the risk of **damaging your device or connected equipment**.
+
+
+There also exists several officially recognized resources:
+* [NanoVNA-App](https://nanovna.com/?page_id=141), download available on official page
+    * With development at [https://github.com/OneOfEleven/NanoVNA-App](https://github.com/OneOfEleven/NanoVNA-App)   
+* [NanoVNA-Saver](https://nanovna.com/?page_id=90)
+    * With releases and download at [https://github.com/NanoVNA-Saver/nanovna-saver/releases](https://github.com/NanoVNA-Saver/nanovna-saver/releases)
+* [NanoVNA-Web-Client / WebApp](https://nanovna.com/?page_id=26)
+    * Works from https://cho45.stfuawsc.com/NanoVNA/ using the latest version of chrome browser, and as an Android .apk
+
 
 This README provides example code for connecting to the device, scanning and plotting data, saving to CSV, capturing the screen, and running calibrations. Examples are not exhaustive. Refer to the [List of NanoVNA Commands and their Library Commands](#list-of-nanovna-commands-and-their-library-commands) for the tested commands. Alias functions are provided for convenience but are not exhaustive.
 
 If you are interested in developing the PyPI package or making a custom local version, see [Library Development](#library-development) towards the end of this README.
 
-
 The primary GitHub: [https://github.com/LC-Linkous/nanoVNA_python](https://github.com/LC-Linkous/nanoVNA_python)
 
 The PyPI page: [https://pypi.org/project/nvnapython/](https://pypi.org/project/nvnapython/)
-
-
 
 
 
@@ -71,13 +80,36 @@ The PyPI page: [https://pypi.org/project/nvnapython/](https://pypi.org/project/n
 
 ## The NanoVNA Series of Devices
 
+The [NanoVNA line of devices](https://nanovna.com/?page_id=21) are a series of portable and pretty user-friendly vector network analyzer devices. There are several devices with different frequency ranges, so refer to [official documentation](https://nanovna.com/?page_id=21) to select one for your needs. There are also some very convincing knock-off devices, so ensure that you are purchasing an actual device from a [reputable vendor](https://nanovna.com/?page_id=121). 
+
+This device is often compared to the [tinySA series of devices][https://tinysa.org/](https://tinysa.org/). The NanoVNA series is a handheld vector network analyzer (VNA), which measures the S-parameters (loosely: a type of response of a device or antenna) over at different frequencies, while a spectrum analyzer measures the amplitude of RF signals at different frequencies. There's a lot of overlap with the use of both devices, but the measurements are very different. A signal generator (one of the features of the tinySA) is exactly what it sounds like - it generates a signal at a specific frequency or frequencies at a specified power level.
+
+Official documentation can be found at [https://nanovna.com/](https://nanovna.com/?page_id=21). The official Wiki is going to be more up to date than this repo with new versions and features, and they also have links to GUI-based software. Several community projects also exist on GitHub.
+
+There is also a very active NanoVNA community at [https://groups.io/g/nanovna-users/](https://groups.io/g/nanovna-users/) exploring the device capabilities and its many features. 
+
+The end of this README will have some references and links to supporting material, but it is STRONGLY suggested to do some basic research and become familiar with your device before attempting to script or write code for it. 
+
 
 
 ## Library Usage
 
+This library is available via PyPI, local install, or by using the class directly. We recommend one of the install options.
+
+Several usage examples are provided in the [Example Implementations](#example-implementations) section, including working with the hardware and plotting results with matplotlib. Runnable versions of all of them live in the `examples/` directory (see the [examples README](examples/README.md)).
+
 
 ### PyPI Install
 
+The `nvnapython` package (from PyPI at [https://pypi.org/project/nvnapython/](https://pypi.org/project/nvnapython/)) can be installed with:
+
+```python
+
+pip install nvnapython
+
+```
+
+The GitHub repository is named `nanoVNA_python` to differentiate the working version (with extended documentation and runnable examples) from the installable package.
 
 
 ### Local Install Using UV
@@ -114,6 +146,9 @@ pip install nvnapython
 # with the plotting/imaging example dependencies
 pip install "nvnapython[plotting]"
 ```
+
+For users on Linux systems, `pyQt5` is used with `matplotlib` to draw the figures. `pyQT5` needs to be installed on Linux systems to follow the examples included in this README, but is not needed on all Windows machines. Install both if you have doubts; they're small packages and commonly used.
+
 
 Python 3.9+ is recommended. The examples are written for a NanoVNA-F V2 by default but take `--start`, `--stop`, and `--points` arguments for other ranges.
 
@@ -291,12 +326,14 @@ These are experimental in nature and have limitations. They are not designed to 
 
 ## Error Handling
 
+Some error handling has been implemented for the individual functions in this library, but not for much of the device configuration. Most functions have a list of acceptable formats for input, which is included in the documentation. 
+
 Two library-side toggles control how much the library reports:
 
 * `set_verbose(True/False)` — when on, the library prints detailed status/diagnostic messages (which port it checks, what a method did, warnings). When off, it stays quiet.
 * `set_error_byte_return(True/False)` — when on, a command the library rejects (bad argument, out-of-range value) returns an explicit `b'ERROR'`. When off, a rejected command returns the default empty `b''`.
 
-The library validates many arguments before sending them (sweep point counts, frequency ranges, marker indices, slot numbers) against the selected model's envelope. Validation is not exhaustive — the device performs its own checks too — so always consult the official documentation for valid ranges.
+The library validates many arguments before sending them (sweep point counts, frequency ranges, marker indices, slot numbers) against the selected model's envelope. Validation is not exhaustive, and the device performs its own checks too, so always consult the official documentation for valid ranges.
 
 
 ## Example Implementations
@@ -304,6 +341,9 @@ The library validates many arguments before sending them (sweep point counts, fr
 Runnable, standalone versions of every example below are in the `examples/` directory; each is a single file you can copy out and run. See [examples/README.md](examples/README.md) for the full list organized by task. The snippets here are illustrative.
 
 All examples release the serial port in a `finally` block, so a failed run does not leave the port locked for the next run — a leaked handle is the usual cause of a `PermissionError` / "device not functioning" on the next attempt on Windows.
+
+This library was developed on Windows and has been lightly tested on Linux. The main difference (so far) has been in the permissions for first access of the serial port, but there may be smaller bugs in format that have not been detected yet. 
+
 
 ### Finding the Serial Port
 
