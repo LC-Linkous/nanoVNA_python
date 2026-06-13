@@ -216,7 +216,6 @@ nanoVNA_python/
 ├── README.md
 ├── LICENSE
 ├── pyproject.toml
-├── uv.lock
 ├── .gitignore
 ├── .python-version
 ├── examples/
@@ -347,9 +346,16 @@ This library was developed on Windows and has been lightly tested on Linux. The 
 
 ### Finding the Serial Port
 
+To start, a serial connection between the NanoVNA and user PC device must be created. There are several ways to list available serial ports. The library supports some rudimentary autodetection, but if that does not work instructions in this section also support manual detection. 
+
+
 #### Autoconnection with the nanoVNA_python Library
 
-`autoconnect()` scans the serial ports for a device matching the NanoVNA USB VID:PID (`0x0483:0x5740`) and connects to the first match. It returns **two booleans**, `(found, connected)`: `found` means a matching device was seen on some port; `connected` means the port was actually opened. They can differ — a device can be found but fail to connect (port busy, held by another program, permissions).
+`autoconnect()` scans the serial ports for a device matching the NanoVNA USB VID:PID (`0x0483:0x5740`) and connects to the first match. It returns **two booleans**, `(found, connected)`: `found` means a matching device was seen on some port; `connected` means the port was actually opened. These can differ a device can be found but fail to connect (port busy, held by another program, permissions).
+
+
+If multiple devices have the same VID, then the first one found is used. If you are connecting multiple devices to a user PC, then it is suggested to connect them manually (for now). The NanoVNA and tinySA devices have the same VID and hardware identification for the serial ports.
+
 
 ```python
 # import the library (installed package)
@@ -375,13 +381,42 @@ else:
 
 #### Manually Finding a Port on Windows
 
-If autoconnect does not find your device (for example, a model with a different USB descriptor), you can find the COM port manually and pass it to `connect()`. Open Device Manager and look under **Ports (COM & LPT)** for the device (often listed as a USB Serial Device or STMicroelectronics Virtual COM Port); note the `COMx` number. Then:
+If autoconnect does not find your device (for example, a model with a different USB descriptor), you can find the COM port manually and pass it to `connect()`. 
+
+1)  Open _Device Manager_, scroll down to _Ports (COM & LPT)_, and expand the menu. There should be a _COM#_ port listing "USB Serial Device(COM #)". If your NanoVNA is set up to work with Serial, this will be it. Note the `COMx` 
+
+2) Then you can use the code below to confirm connection.This uses the pyserial library requirement already installed for this library.
+
 
 ```python
 from nvnapython import nanoVNA
 nvna = nanoVNA()
-nvna.connect("COM6")     # use the COM number you found
+nvna.connect("COM22")     # use the COM number you found
 ```
+
+If a device does not connect, use the code below to list all ports.
+
+```python
+import serial.tools.list_ports
+
+ports = serial.tools.list_ports.comports()
+
+for port, desc, hwid in ports:
+    print(f"Port: {port}, Description: {desc}, Hardware ID: {hwid}")
+```
+
+Example output for this method (on Windows) is as follows:
+
+```python
+
+Port: COM4, Description: Standard Serial over Bluetooth link (COM4), Hardware ID: BTHENUM\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0000\7&D0D1EE&0&000000000000_00000000
+Port: COM3, Description: Standard Serial over Bluetooth link (COM3), Hardware ID: BTHENUM\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0002\7&D0D1EE&0&B8B3DC31CBA8_C00000000
+Port: COM22, Description: USB Serial Device (COM10), Hardware ID: USB VID:PID=0483:5740 SER=400 LOCATION=1-3
+
+```
+
+"COM22" is the port location of the NanoVNA that is used in the examples in this README.
+
 
 #### Manually Finding a Port on Linux
 
@@ -393,7 +428,30 @@ ls /dev/ttyACM*
 dmesg | grep -i tty
 ```
 
-Then connect explicitly. You may need to be in the `dialout` group (or use `sudo`) to access the port:
+Then connect explicitly. You may need to be in the `dialout` group (or use `sudo`) to access the port.
+
+Ports can also be found from within your IDE:
+```python
+import serial.tools.list_ports
+
+ports = serial.tools.list_ports.comports()
+
+for port, desc, hwid in ports:
+    print(f"Port: {port}, Description: {desc}, Hardware ID: {hwid}")
+
+```
+
+This method identified the `/dev/ttyACM0`. Now, when attempting to use the autoconnection feature, the following error was initially returned:
+
+```python
+[Errno 13] could not open port /dev/ttyACM0: [Errno 13] Permission denied: '/dev/ttyACM0'
+
+```
+
+This was due to not having permission to access the port. In this case, this error was solved by opening a terminal and executing `sudo chmod a+rw /dev/ttyACM0`. Should this issue be persistent, other solutions related to user groups and access will need to be investigated.  
+
+
+Confirm connection to the nanoVNA with:
 
 ```python
 from nvnapython import nanoVNA
@@ -401,11 +459,21 @@ nvna = nanoVNA()
 nvna.connect("/dev/ttyACM0")
 ```
 
+
 ### Serial Message Return Format
 
+This libary has iterated over several message return formats on the backend while interfacing with the device. All front-end commands remain the same.
 
-PASTE OLD TEXT FROM README HERE - this needs the comparison for what changed between upadates because it's interesting and went unnoticed for a while
+The original message format:
+```python
+bytearray(b'info\r\nModel:        NanoVNA-F_V2\r\nFrequency:    50k ~ 3GHz\r\nBuild time:   Mar  2 2021 - 09:40:50 CST\r\nch> \r\n')
+```
 
+Cleaned version:
+
+```python
+bytearray(b'Model:        NanoVNA-F_V2\r\nFrequency:    50k ~ 3GHz\r\nBuild time:   Mar  2 2021 - 09:40:50 CST\r')
+```
 
 The device frames every reply by echoing the command, sending the payload (whitespace-separated values, one record per line, CR/LF terminated), and ending with the console prompt. On the NanoVNA-F V2 firmware tested here, the prompt is emitted as `ch> ` (with a trailing space) and is **doubled** at the end of each reply — the tail is `...\r\nch> \r\nch> `. The library's read logic consumes that whole prompt tail so leftover bytes don't corrupt the next command, and `clean_return()` strips the echoed-command line and the trailing prompt, leaving just the payload.
 
@@ -415,6 +483,8 @@ Two framing details worth knowing if you parse raw output yourself:
 * Binary replies (the `capture` framebuffer) are NOT line-framed and can contain bytes that happen to equal `ch>` or `>` — so binary reads are handled by byte count, not by scanning for the prompt (see [Saving Screen Images](#saving-screen-images)).
 
 ### Connecting and Disconnecting the Device
+ 
+ This example shows the process for initializing, opening the serial port, getting device info, and disconnecting.
 
 ```python
 from nvnapython import nanoVNA
