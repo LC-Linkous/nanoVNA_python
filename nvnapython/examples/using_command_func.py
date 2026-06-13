@@ -1,43 +1,56 @@
 #! /usr/bin/python3
-
 ##-------------------------------------------------------------------------------\
-#   nanoVNA_python
+#   nanoVNA_python (nvnapython)
 #   './examples/using_command_func.py'
-#   The command func can be used for commands or functionalities that exist on the 
-#   nanoVNA series of devices but arent included in the library yet. There is NO
-#   built in error checking for this process. 
+#   command() is a passthrough: it sends an arbitrary command string straight to
+#   the device and returns the cleaned reply, with NO library-side error checking.
+#   Use it for device features the library doesn't wrap yet, or to experiment.
+#       python examples/using_command_func.py
+#       python examples/using_command_func.py --cmd "info"
 #
-#   Last update: June 29, 2025
 ##-------------------------------------------------------------------------------\
 
+import sys
+import os
+import argparse
 
-# import NanoVNA library
-# (installed package: pip install -e . from the repo root)
-from nvnapython import nanoVNA 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-
-# create a new nanoVNA object    
-nvna = nanoVNA()
-
-# set the return message preferences 
-nvna.set_verbose(True) #detailed messages
-nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+from nvnapython import nanoVNA          # noqa: E402
 
 
-# attempt to autoconnect
-found_bool, connected_bool = nvna.autoconnect()
+def main():
+    ap = argparse.ArgumentParser(description="NanoVNA raw command() passthrough demo.")
+    ap.add_argument("--port", default=None,
+                    help="serial port. Omit to autoconnect.")
+    ap.add_argument("--cmd", default="scan 150000 250000000 200 2",
+                    help="raw command string to send (no error checking)")
+    args = ap.parse_args()
 
-# if port closed, then return error message
-if connected_bool == False:
-    print("ERROR: could not connect to port")
-else: # if port found and connected, then complete task(s) and disconnect
+    nvna = nanoVNA()
+    nvna.set_verbose(True)
+    nvna.set_error_byte_return(True)
 
-    # scan
-    data_bytes = nvna.command("scan 150000 250000000 200 2")
+    if args.port:
+        connected = nvna.connect(args.port)
+    else:
+        _found, connected = nvna.autoconnect()
+    if not connected:
+        print("ERROR: no NanoVNA connected. Pass --port, free the port, or replug.")
+        return 1
 
-    print(data_bytes)
+    try:
+        # a scan pauses the sweep on the device; resume() afterward so the
+        # screen isn't left frozen. (Harmless for non-scan commands.)
+        raw = nvna.command(args.cmd)
+        print(f"sent: {args.cmd!r}")
+        print(f"got {len(raw)} bytes:")
+        print(raw)
+        nvna.resume()
+    finally:
+        nvna.disconnect()
+    return 0
 
-    nvna.resume() #resume 
 
-    nvna.disconnect()
-
+if __name__ == "__main__":
+    raise SystemExit(main())
