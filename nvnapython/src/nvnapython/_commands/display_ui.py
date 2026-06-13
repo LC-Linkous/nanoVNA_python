@@ -49,15 +49,114 @@ class DisplayUIMixin:
         time.sleep(seconds)
         return self.beep(val='off')
 
-    def capture(self):
-        # requests a screen dump in binary format.
-        # 800x480 for NanoVNA-F V2 / V3.
+    def capture(self, width=None, height=None):
+        # Request a screen dump in BINARY format (RGB565, 2 bytes/pixel) and read
+        # it back via a length-driven binary read -- NOT the text 'ch>'-prompt
+        # path, which is wrong for binary (the image can contain 'ch>'/'>' bytes,
+        # and the prompt framing can stop before the full frame streams in).
+        #
+        # STREAM STRUCTURE (confirmed on hardware, NanoVNA-F V2):
+        #     "capture\r\n"            <- 9-byte ECHO of the command
+        #     <width*height*2 bytes>   <- the RGB565 framebuffer
+        #     "ch> \r\nch> "           <- 10-byte trailing prompt
+        # The echo MUST be stripped before the image, or every pixel is shifted
+        # by 9 bytes: the image wraps horizontally (right edge appears on the
+        # left, splitting characters) AND, because 9 is odd, every 16-bit pixel's
+        # bytes swap, scrambling the colors. The old text path stripped this echo
+        # implicitly (clean_return removed up to the first '\r\n'); this binary
+        # path strips it explicitly below.
+        #
         # usage: capture
-        # example return: bytearray(b'\x00 ...\x00\x00\x00')
+        # returns: a bytearray of exactly width*height*2 image bytes (or shorter,
+        #          with a warning, if the read was cut short).
+        #
+        # width/height default to the selected model's screen size
+        # (self.screenWidth/Height), so a normal call needs no arguments.
+        import time
+        if width is None:
+            width = self.screenWidth
+        if height is None:
+            height = self.screenHeight
+        expected = width * height * 2
 
-        writebyte = 'capture\r\n'
-        msgbytes = self.nanoVNA_serial(writebyte, printBool=False)
-        self.print_message("capture() called for screen data")
+        self.ser.reset_input_buffer()
+        self.ser.reset_output_buffer()
+        self.ser.write(bytes('capture\r\n', 'utf-8'))
+
+        # Read the whole response in BULK (echo + image + trailing prompt) the
+        # same way the standalone diagnostic that succeeded did -- read all of
+        # in_waiting each pass, never byte-at-a-time. Reading one byte at a time
+        # to find the echo's newline can stall the USB CDC pipe on Windows while
+        # the device is trying to stream the 768 KB frame, so we avoid it.
+        #
+        # We read until we have the echo line PLUS the full image. We don't know
+        # the echo length up front (it's "capture\r\n" = 9 bytes, but read it
+        # rather than assume), so the target is "first '\r\n' seen, then expected
+        # image bytes after it". Bound by a generous absolute timeout only -- a
+        # brief idle mid-stream is normal and must not stop the read.
+        timeout_s = self.serialTimeout * 6
+        buffer = bytearray()
+        img_start = None                      # index just after the echo's \r\n
+        start = time.time()
+        got_started = False
+        while True:
+            waiting = self.ser.in_waiting
+            if waiting:
+                buffer += self.ser.read(waiting)
+                got_started = True
+                if img_start is None:
+                    nl = buffer.find(b"\r\n")
+                    if nl != -1:
+                        img_start = nl + 2
+                # done once we have echo + full image
+                if img_start is not None and len(buffer) - img_start >= expected:
+                    break
+            else:
+                elapsed = time.time() - start
+                if not got_started and elapsed > self.serialTimeout:
+                    self.print_message(
+                        "WARNING: capture() got no data within " +
+                        str(self.serialTimeout) + "s (device not streaming? "
+                        "power-cycle if it became unresponsive)")
+                    break
+                if elapsed > timeout_s:
+                    self.print_message(
+                        "WARNING: capture() timed out after " + str(timeout_s) +
+                        "s with " + str(len(buffer)) + " raw bytes")
+                    break
+                time.sleep(self.serialPollInterval)
+
+        # split off the echo; what remains (trimmed to expected) is the image.
+        if img_start is None:
+            # never saw the echo newline; treat whatever we have as image and
+            # let the length check below report it.
+            img_start = 0
+        image = buffer[img_start:img_start + expected]
+        msgbytes = bytearray(image)
+
+        # drain any trailing prompt bytes so the next command isn't fed stale
+        # data (otherwise a following capture/command can stall).
+        try:
+            drain_deadline = time.time() + max(self.serialPollInterval * 10, 0.1)
+            while time.time() < drain_deadline:
+                if self.ser.in_waiting:
+                    self.ser.read(self.ser.in_waiting)
+                    time.sleep(self.serialPollInterval)
+                    if not self.ser.in_waiting:
+                        break
+                else:
+                    time.sleep(self.serialPollInterval)
+        except Exception:
+            pass
+
+        if len(msgbytes) < expected:
+            self.print_message(
+                "WARNING: capture() got " + str(len(msgbytes)) + "/" +
+                str(expected) + " image bytes; the image will be incomplete. "
+                "Re-run (power-cycle the device if it became unresponsive).")
+        else:
+            self.print_message("capture() read " + str(len(msgbytes)) +
+                               " bytes of screen data (echo stripped)")
         return msgbytes
 
     def capture_screen(self):
@@ -66,22 +165,22 @@ class DisplayUIMixin:
 
     def decode_capture(self, data_bytes, width=None, height=None,
                        byte_order="little"):
-        # Decode a raw NanoVNA screen-capture buffer (BGR565) into a flat list
+        # Decode a raw NanoVNA screen-capture buffer (RGB565) into a flat list
         # of (r, g, b) tuples, row-major, length width*height.
         #
-        # The NanoVNA panel is BGR565: within each 16-bit pixel, bits 15-11 are
-        # BLUE, bits 10-5 GREEN, bits 4-0 RED. (This is the documented swap from
-        # the tinySA's RGB565 -- red and blue are exchanged.)
+        # PIXEL FORMAT: each 16-bit little-endian pixel is RGB565 -- bits 15-11
+        # RED, bits 10-5 GREEN, bits 4-0 BLUE. This is proven byte-for-byte
+        # identical to the known-working example pipeline (which extracted 'BGR'
+        # bits into a uint32 and then let the uint32->PIL 'RGBA' little-endian
+        # byte order re-swap red and blue, netting RGB565). See the per-pixel
+        # loop below.
         #
         # byte_order selects how the two bytes of each pixel combine into the
         # 16-bit value:
-        #   "little" -> value = lo | (hi << 8) using struct '<H' (the order the
-        #               original example used; the library default)
-        #   "big"    -> value = (hi << 8) | lo
-        # The true on-wire order is being confirmed on hardware (see
-        # tests/test_hardware_capture_probe.py, which reports BOTH decodes).
-        # Exposed as a parameter so flipping the default is a one-line change
-        # once settled, with no caller rewrite.
+        #   "little" -> value via struct '<H' (the order the device sends; the
+        #               library default, matches the working example)
+        #   "big"    -> value via struct '>H' (exposed only for comparison/other
+        #               firmware; not expected to be needed on the F V2)
         #
         # width/height default to the library's seeded screen size for the
         # selected model (self.screenWidth/Height), so a correctly-sized buffer
@@ -125,9 +224,17 @@ class DisplayUIMixin:
 
         pixels = []
         for v in values:
-            blue = ((v & 0xF800) >> 11) * 255 // 31
-            green = ((v & 0x07E0) >> 5) * 255 // 63
-            red = (v & 0x001F) * 255 // 31
+            # RGB565: bits 15-11 = RED, bits 10-5 = GREEN, bits 4-0 = BLUE.
+            #
+            # This is proven byte-for-byte identical (all 65536 values) to the
+            # known-working example pipeline, which extracted the fields as
+            # 'BGR' into a uint32 and then handed the uint32's little-endian
+            # bytes to PIL as 'RGBA' -- that serialization re-swapped red/blue,
+            # so the NET result was RGB565. Decoding straight to RGB565 here
+            # reproduces exactly what that pipeline displayed.
+            red = ((v & 0xF800) >> 11) * 255 // 31     # high 5 bits
+            green = ((v & 0x07E0) >> 5) * 255 // 63     # mid 6 bits
+            blue = (v & 0x001F) * 255 // 31             # low 5 bits
             pixels.append((red, green, blue))
         return pixels
 

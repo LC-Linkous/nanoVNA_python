@@ -375,6 +375,66 @@ class nanoVNA(
 
         return bytearray(buffer)
 
+    def get_binary_return(self, expected_bytes, timeout_s=None, start_timeout_s=None):
+        # Read a fixed-length BINARY reply (e.g. the 'capture' framebuffer) off
+        # the port, WITHOUT the text 'ch>'-prompt framing.
+        #
+        # WHY THIS IS SEPARATE FROM get_serial_return: binary frames have no line
+        # framing and CAN contain the bytes 'ch>' or '>' mid-payload (they're
+        # just pixel values). Scanning for the prompt -- the way the text read
+        # does -- can therefore cut a binary frame short at a coincidental byte
+        # run, or (with the prompt-settle) stop before the whole frame has
+        # streamed in. The reliable completion signal for a binary frame is its
+        # KNOWN LENGTH, so we read until expected_bytes have arrived.
+        #
+        # NO IDLE GIVEUP DURING THE STREAM: the framebuffer streams over USB CDC
+        # in many small chunks (measured: an 800x480x2 = 768000-byte frame
+        # arrives in ~474 chunks over ~2.5s). We must NOT treat a brief idle
+        # WITHIN the transfer as end-of-data, or the frame truncates. Stop
+        # conditions are: (a) we have expected_bytes, (b) NO data ever started
+        # arriving within start_timeout_s (device not streaming -- fail fast
+        # instead of waiting the full cap), or (c) a generous absolute timeout
+        # (a stalled/dead transfer mid-stream). Returns exactly expected_bytes on
+        # success, or a SHORT bytearray (with a warning) otherwise.
+        import time
+        if timeout_s is None:
+            # generous absolute cap that scales with the configured serial
+            # timeout. At the default serialTimeout (5s) this is ~30s; the real
+            # transfer is a couple of seconds, so it only fires on a stalled or
+            # dead transfer mid-stream.
+            timeout_s = self.serialTimeout * 6
+        if start_timeout_s is None:
+            # how long to wait for the FIRST byte before giving up. If the device
+            # didn't begin streaming, there's no point waiting out the full cap.
+            start_timeout_s = self.serialTimeout
+
+        buffer = bytearray()
+        start = time.time()
+        while len(buffer) < expected_bytes:
+            waiting = self.ser.in_waiting
+            if waiting:
+                buffer += self.ser.read(waiting)
+            else:
+                elapsed = time.time() - start
+                if len(buffer) == 0 and elapsed > start_timeout_s:
+                    self.print_message(
+                        "WARNING: binary read got no data within " +
+                        str(start_timeout_s) + "s (device not streaming?)")
+                    break
+                if elapsed > timeout_s:
+                    self.print_message(
+                        "WARNING: binary read timed out with " + str(len(buffer)) +
+                        "/" + str(expected_bytes) + " bytes after " +
+                        str(timeout_s) + "s")
+                    break
+                time.sleep(self.serialPollInterval)
+
+        # The device appends a 'ch> ' prompt after the frame; if we over-read
+        # into it, trim back to exactly the image bytes.
+        if len(buffer) >= expected_bytes:
+            return bytearray(buffer[:expected_bytes])
+        return buffer   # short read; caller decides how to handle
+
     def clean_return(self, data):
         # Normalize the raw device reply into just the payload.
         #
