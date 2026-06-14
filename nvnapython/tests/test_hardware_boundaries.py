@@ -22,7 +22,9 @@
 #     B5. save slot range: SAFE round-trip -- recall a slot to capture its
 #         active fingerprint, save active back to the SAME slot (identical
 #         data, no content change), confirm the id is accepted. Never writes a
-#         slot that wasn't first recalled successfully.
+#         slot that wasn't first recalled successfully. Uses the library's
+#         fire-and-forget save() so it does not hang on firmware that emits no
+#         prompt after a flash write (F V3 0.5.8 vs F V2 0.3.0, which prompts).
 #     B6. cal actions: is 'in' accepted on this firmware? (help omits it.)
 #     B7. cwfreq units: set a value, read back the active point, infer Hz vs kHz.
 #
@@ -179,9 +181,23 @@ def test_b5_save_slots_safe_roundtrip(device, slot):
     # capture an active-state fingerprint BEFORE the save
     before = _decode(device.command("sweep"))
 
-    # 2) save active state back to the SAME slot -> byte-identical rewrite
-    sav = device.command(f"save {slot}")
-    sav_ok = not _is_error(sav)
+    # 2) save active state back to the SAME slot -> byte-identical rewrite.
+    #
+    # FIRMWARE NOTE: we go through device.save() -- the library's fire-and-forget
+    # path -- NOT a raw command("save N"). 'save' writes to flash, and the two
+    # firmwares behave differently afterward:
+    #   * NanoVNA-F V2 (0.3.0): emits the 'ch> ' prompt normally (~0.56s).
+    #   * NanoVNA-F V3 (0.5.8): emits NO prompt at all (echo only), so a
+    #     prompt-waiting read (raw command) hangs for the full serial timeout and
+    #     the NEXT command collides with the still-busy device and blocks the
+    #     port. This is what made this probe hang on the V3 while passing on V2.
+    # device.save() does not wait for a prompt, so it is safe on both. We also
+    # settle briefly before the follow-up recall so the V3's post-flash-write
+    # window can clear before we talk to the device again.
+    import time
+    save_resp = device.save(slot)
+    sav_ok = not _is_error(save_resp)
+    time.sleep(0.8)   # let a slow/no-prompt flash write settle before next read
 
     # 3) re-load and re-fingerprint to confirm nothing changed
     device.command(f"recall {slot}")
@@ -198,7 +214,11 @@ def test_b5_conclusion(device):
     print("\n  [CONCLUSION] B5: slots with save_ok=True are valid save targets. "
           "The highest is the save max. If it exceeds the library's hardcoded "
           "0..4, widen save(); reconcile against num_preset_slots. "
-          "fingerprint_unchanged=True confirms the probe was non-destructive.")
+          "fingerprint_unchanged=True confirms the probe was non-destructive. "
+          "NOTE: on firmware that does not prompt after a flash write (e.g. F V3 "
+          "0.5.8), save() returns empty rather than an ack, so save_ok just means "
+          "'sent without an error reply' -- fingerprint_unchanged is the real "
+          "confirmation the write round-tripped.")
 
 
 # ===========================================================================

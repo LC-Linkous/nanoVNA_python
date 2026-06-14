@@ -22,6 +22,10 @@ def rec_dev():
     dev.set_error_byte_return(True)
     calls = []
     dev.nanoVNA_serial = lambda *a, **k: calls.append(a[0]) or bytearray(b"")
+    # save() writes to flash via the fire-and-forget no-wait path (the device
+    # never prompts after a flash write); route it to the same recorder so save
+    # tests capture the command string the same way.
+    dev.nanoVNA_serial_no_wait = lambda *a, **k: calls.append(a[0]) or bytearray(b"")
     dev._calls = calls
     return dev
 
@@ -124,6 +128,7 @@ def test_save_recall_ranges_not_yet_envelope_driven():
     dev.set_error_byte_return(True)
     calls = []
     dev.nanoVNA_serial = lambda *a, **k: calls.append(a[0]) or bytearray(b"")
+    dev.nanoVNA_serial_no_wait = lambda *a, **k: calls.append(a[0]) or bytearray(b"")
     dev.save(5)                                  # within envelope's 7, but...
     assert calls == []                           # ...still rejected by hardcoded 0..4
 

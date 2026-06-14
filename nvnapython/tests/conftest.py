@@ -128,6 +128,12 @@ def nvna(recorder):
 
     dev = nanoVNA()                      # already seeded to F V2 by __init__
     dev.nanoVNA_serial = recorder
+    # save() (and any fire-and-forget flash-write command) goes through the
+    # no-wait serial path rather than nanoVNA_serial -- the NanoVNA does not emit
+    # a prompt after a flash write, so save() does not wait for one. Route that
+    # path to the SAME recorder so command-construction tests capture it the same
+    # way (the recorder ignores the extra settle kwarg).
+    dev.nanoVNA_serial_no_wait = recorder
     dev._recorder = recorder             # handy backref for assertions
     return dev
 

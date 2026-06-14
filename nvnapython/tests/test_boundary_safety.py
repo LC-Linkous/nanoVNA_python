@@ -176,6 +176,8 @@ def test_documents_save_range_vs_envelope_mismatch():
     dev.set_error_byte_return(True)
     calls = []
     dev.nanoVNA_serial = lambda *a, **k: calls.append(a[0]) or bytearray(b"")
+    # save() uses the fire-and-forget no-wait serial path; capture it too.
+    dev.nanoVNA_serial_no_wait = lambda *a, **k: calls.append(a[0]) or bytearray(b"")
     # the highest slot save() currently accepts:
     dev.save(4)
     assert calls == ["save 4\r\n"]
