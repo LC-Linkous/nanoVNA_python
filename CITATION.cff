@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: "nvnapython: An Unofficial Python API for the NanoVNA Device Series"
+abstract: >-
+  A non-GUI Python API for the NanoVNA series of vector network analyzer
+  devices, providing programmatic control for automated measurements, data
+  collection, and analysis. This is an unofficial community project and is not
+  endorsed by the official NanoVNA product, owner, or company.
+type: software
+authors:
+  - family-names: "Linkous"
+    given-names: "Lauren"
+    orcid: "https://orcid.org/0000-0001-9945-5125"
+version: "2.0.0"
+date-released: "2026-06-05"
+license: GPL-2.0-only
+repository-code: "https://github.com/LC-Linkous/nanoVNA_python"
+url: "https://github.com/LC-Linkous/nanoVNA_python"
+keywords:
+  - nanoVNA
+  - vector-network-analyzer
+  - python
+  - serial
+  - rf
+  - signal-processing
+  - instrumentation
