@@ -753,10 +753,10 @@ Quick Link Table:
 |  |   |     |   |       |      |      |
 |-------|-------|-------|-------|-------|-------|-------|
 | [beep](#beep) | [cal](#cal) | [capture](#capture) | [clearconfig](#clearconfig) | [cwfreq](#cwfreq) | [data](#data) | [edelay](#edelay) |
-| [frequencies](#frequencies) | [help](#help) | [info](#info) | [LCD](#LCD) | [LCD_ID](#LCD_ID) | [lcd](#lcd) | [marker](#marker) |
-| [pause](#pause) | [port](#port) | [pwm](#pwm) | [recall](#recall) | [reset](#reset) | [resolution](#resolution) | [restart](#restart) |
-| [resume](#resume) | [save](#save) | [saveconfig](#saveconfig) | [scan](#scan) | [SN](#SN) | [sweep](#sweep) | [touchcal](#touchcal) |
-| [touchtest](#touchtest) | [trace](#trace) | [version](#version) |  |  |  |  |
+| [frequencies](#frequencies) | [help](#help) | [info](#info) | [LCD_ID](#LCD_ID) | [lcd](#lcd) | [marker](#marker) | [pause](#pause) |
+| [pwm](#pwm) | [recall](#recall) | [reset](#reset) | [resolution](#resolution) | [restart](#restart) | [resume](#resume) | [save](#save) |
+| [saveconfig](#saveconfig) | [scan](#scan) | [SN](#SN) | [sweep](#sweep) | [touchcal](#touchcal) | [touchtest](#touchtest) | [trace](#trace) |
+| [version](#version) |  |  |  |  |  |  |
 
 
 
@@ -809,7 +809,7 @@ Quick Link Table:
 * **Alias Functions:**
     * `capture_screen()`
 * **CLI Wrapper Usage:**
-* **Notes:** Data is in little-endian mode. Screen resolution is 800*480 for NanoVNA-F V2 and V3 
+* **Notes:** Screen resolution is 800x480 for the NanoVNA-F V2 and V3 (2 bytes per pixel, so 768000 image bytes). The data is little-endian, but note the per-pixel CHANNEL layout is not plain RGB565/BGR565 — on the F V2/V3 the 16-bit pixel packs green in the high 5 bits, blue in the middle 6, and red in the low 5. Use `decode_capture()` rather than rolling your own bit math; see [Saving Screen Images](#saving-screen-images). The capture stream also begins with a `capture\r\n` echo and ends with the `ch>` prompt; the library strips both and reads the frame by its known byte count.
 
 
 ### **clearconfig**
@@ -1046,7 +1046,7 @@ Quick Link Table:
 
 
 ### **restart**
-* **Description:** Restarts the  tinySA after the specified number of seconds
+* **Description:** Restarts the NanoVNA after the specified number of seconds
 * **Original Usage:** `restart {seconds}`
 * **Direct Library Function Call:** `restart(val=0...)`
 * **Example Return:** empty bytearray
@@ -1126,7 +1126,7 @@ Quick Link Table:
     * `scan 1000000 2000000 200 7`
         * `bytearray(b'1000 -1.133184 0.885893 -0.000045 -0.000008 \r\n....\r\n0 0.000000 0.000000 0.000000 0.000000 \r'))`
         *  When the frequency, S11, and S21 are returned, the data is the `freq in KHz` and then the 2 parts of the EACH complex signal, 4 signal parts in total. The `padding` has 5 blank float values.
-    * Returns for invalid input:
+    * Returns for invalid input (the exact range is model-dependent; the F V2 reports 51-201, the F V3 reports 51-801):
         * `bytearray(b'sweep points exceeds range 51 -201\r')`
         * `bytearray(b'frequency range is invalid\r')`
 * **Alias Functions:**
@@ -1141,7 +1141,7 @@ Quick Link Table:
 * **CLI Wrapper Usage:**
 * **Notes:**  
     * `start` and `stop` are required values of frequencies are in Hz. Frequency returns are in kHz.
-    * `[points]` is the number of points in the scan. The MAX points is device dependent. 201 is a common max, end not inclusive.
+    * `[points]` is the number of points in the scan. The MAX points is device dependent (201 on the F V2, 801 on the F V3). The library validates against the selected model envelope; `command()` bypasses that check.
     * `[outmask]` 
      * 0 = no printout
      * 1 = frequency vals
@@ -1157,13 +1157,13 @@ Quick Link Table:
 * **Description:** Get the unique serial number of the NanoVNA.
 * **Original Usage:** `SN`
 * **Direct Library Function Call:** `SN(None)`
-* **Example Return:** `bytearray(b'63507468C\r')` 
+* **Example Return:** `bytearray(b'20210413080156D7')`
 * **Alias Functions:**
     * `get_SN()`
 * **CLI Wrapper Usage:**
 * **Notes:** 
     * NanoVNA-F ID  (hint returned by help for DUT)
-    * Example number changed from actual return. This is a 16-Bit serial number.
+    * The serial number is a 16-character hexadecimal string (not a 16-bit number).
 
 
 ### **sweep**
@@ -1264,7 +1264,7 @@ Quick Link Table:
 * **Description:** returns the firmware version
 * **Original Usage:** `version`
 * **Direct Library Function Call:** `version()` 
-* **Example Return:** `bytearray(b'0.2.1\r')`
+* **Example Return:** `bytearray(b'0.3.0')` (NanoVNA-F V2, firmware 0.3.0; the F V3 reports `0.5.8`)
 * **Alias Functions:**
     * `get_version()`
 * **CLI Wrapper Usage:**
@@ -1280,11 +1280,11 @@ Quick Link Table:
 * **Direct Library Function Call:** `command(val=Str)`
 * **Example Usage:**:
     * example: `command("version")`
-    * return: `b'tinySA4_v1.4-143-g864bb27\r\nHW Version:V0.4.5.1.1 \r'`
-    * example: `command("trace 1")`
-    * return: `b'1: dBm 0.000000000 10.000000000 \r'`    
-    * example: `command("scan 150e6 200e6 5 2")`
-    * return: `b'5.750000e+00 0.000000000 \r\n6.250000e+00 0.000000000 \r\n6.750000e+00 0.000000000 \r\n6.250000e+00 0.000000000 \r\n6.750000e+00 0.000000000 \r'`        
+    * return: `b'0.3.0'`
+    * example: `command("info")`
+    * return: `b'Model:        NanoVNA-F_V2\r\nFrequency:    50k ~ 3GHz\r\nBuild time:   Aug 17 2021 - 16:13:15 CST'`
+    * example: `command("scan 1000000 2000000 5 2")`
+    * return: `b'0.414528 0.623509 \r\n0.512547 0.542835 \r\n0.552637 0.489537 \r\n0.602180 0.444314 \r\n0.674851 0.374883 \r'`        
 * **Example Return:** command dependent
 * **Alias Functions:**
     * None
@@ -1515,4 +1515,4 @@ The **code in this repository** has been released under GPL-2.0 for right now (a
 This software is released AS-IS, meaning that there may be bugs (especially as it is under development). 
 
 
-This software is UNOFFICIAL, meaning that the NanoVNA team does not offer tech support for it, does not maintain it, and has no responsibility for any of the contents. 
+This software is UNOFFICIAL, meaning that the NanoVNA team does not offer tech support for it, does not maintain it, and has no responsibility for any of the contents.
