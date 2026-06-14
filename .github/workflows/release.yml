@@ -9,30 +9,36 @@ jobs:
   test:
     name: test (hardware-free)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nvnapython   # the project (pyproject.toml) lives here
     steps:
       - uses: actions/checkout@v4
-
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-
-      - name: Install package with test extras
-        run: uv pip install --system -e "nvnapython[test]"   # project lives in the nvnapython/ subdirectory
-
+      - name: Create venv and install package with test extras
+        # Do NOT use --system: the runner's /usr Python is externally managed
+        # (PEP 668) and uv refuses to install into it. uv venv makes an isolated
+        # .venv and `uv pip install` (no --system) targets it automatically.
+        run: |
+          uv venv
+          uv pip install -e ".[test]"
       - name: Run hardware-free tests
-        run: pytest -m "not hardware" -q nvnapython/tests
+        # run THROUGH the venv, from the project dir, so pytest finds
+        # pyproject.toml (and the registered 'hardware' marker -- the suite uses
+        # --strict-markers, which would error on the marker if the config dir
+        # weren't picked up). Hardware tests self-skip with no device attached.
+        run: uv run python -m pytest -m "not hardware" -q
 
   build:
     needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-
       - name: Build package
         run: uv build nvnapython          # project lives in the nvnapython/ subdirectory
-
       - name: Store distributions
         uses: actions/upload-artifact@v4
         with:
@@ -51,6 +57,5 @@ jobs:
         with:
           name: dist
           path: dist/
-
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
