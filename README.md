@@ -682,7 +682,10 @@ The last value before the padding is ` -0.737695 -0.554410`. The first number is
 
 ### Saving Screen Images
 
-`capture()` reads the screen framebuffer (RGB565, 2 bytes per pixel) and `decode_capture()` turns it into a list of `(r, g, b)` pixels you can hand to Pillow. The capture path reads the binary frame by its known byte count (width × height × 2), strips the leading command echo and the trailing prompt, and leaves the buffer clean for the next command. This avoids the truncation/wrap and color-scramble that a text-style prompt-framed read produces on a binary payload.
+
+ The `capture()` function can be used to capture the screen and output it to an image file. Note that the screen size varies by device. The library itself does not have a function for saving to an image (requires an additional library), but examples and the CLI wrapper have this functionality.
+
+`capture()` reads the screen framebuffer (RGB565, 2 bytes per pixel) and `decode_capture()` turns it into a list of `(r, g, b)` pixels you can hand to Pillow. The capture path reads the binary frame by its known byte count (width × height × 2), strips the leading command echo and the trailing prompt, and leaves the buffer clean for the next command. This avoids the truncation/wrap and color-scramble that a text-style prompt-framed read produces on a binary payload. The width and height are known based on device selection.
 
 ```python
 from PIL import Image
@@ -702,6 +705,13 @@ img.save("screen.png")
 ```
 
 A complete version with command-line options is `examples/screen_capture.py`. Note: if the device is interrupted mid-capture it can become briefly unresponsive (Windows may report "a device attached to the system is not functioning") — power-cycle the NanoVNA to recover, and avoid hammering captures back-to-back.
+
+
+<p align="center">
+        <img src="media/example_screen_capture.png" alt="Capture of On-screen Trace Data" height="350">
+</p>
+   <p align="center">Capture On-Screen Trace Data from 1 GHz to 3 GHzz</p>
+
 
 ### Plotting Data with Matplotlib
 
