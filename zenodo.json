@@ -1,0 +1,28 @@
+{
+  "title": "nvnapython: An Unofficial Python API for the NanoVNA Device Series",
+  "description": "A non-GUI Python API for the NanoVNA series of vector network analyzer devices, providing programmatic control for automated measurements, data collection, and analysis. This is an unofficial community project and is not endorsed by the official NanoVNA product, owner, or company.",
+  "upload_type": "software",
+  "license": "GPL-2.0-only",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Linkous, Lauren"
+    }
+  ],
+  "keywords": [
+    "NanoVNA",
+    "vector-network-analyzer",
+    "python",
+    "serial",
+    "rf",
+    "signal-processing",
+    "instrumentation"
+  ],
+  "related_identifiers": [
+    {
+      "relation": "isSupplementTo",
+      "identifier": "https://github.com/LC-Linkous/nanoVNA_python",
+      "scheme": "url"
+    }
+  ]
+}
