@@ -1,17 +1,12 @@
 # nanoVNA_python
 
-<!-- Badges. Note on the DOI: replace the Zenodo badge + link below once the
-     Zenodo deposit is created and a DOI is assigned. -->
-
 [![PyPI version](https://badge.fury.io/py/nvnapython.svg)](https://badge.fury.io/py/nvnapython)
 [![Python versions](https://img.shields.io/pypi/pyversions/nvnapython.svg)](https://pypi.org/project/nvnapython/)
 [![PyPI - Wheel](https://img.shields.io/pypi/wheel/nvnapython.svg)](https://pypi.org/project/nvnapython/)
 [![Downloads](https://static.pepy.tech/badge/nvnapython)](https://pepy.tech/project/nvnapython)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-<!-- [![DOI](https://zenodo.org/badge/DOI/REPLACE_WITH_DOI.svg)](https://doi.org/REPLACE_WITH_DOI) -->
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20685801.svg)](https://doi.org/10.5281/zenodo.20685801)
 
-
-<!-- Zenodo archive with DOI: add link once the deposit is created. -->
 
 ## AN UNOFFICIAL Python API for the NanoVNA Device Series
 
