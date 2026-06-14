@@ -312,7 +312,7 @@ python -m pytest --cov=nvnapython --cov-report=term-missing
 python tests/collect_readme_data.py
 
 # or specify the port explicitly
-python tests/collect_readme_data.py --port COM6     # Windows
+python tests/collect_readme_data.py --port COM22     # Windows
 python tests/collect_readme_data.py --port /dev/ttyACM0   # Linux
 ```
 
@@ -493,7 +493,7 @@ nvna = nanoVNA()
 nvna.set_verbose(True)
 nvna.set_error_byte_return(True)
 
-found, connected = nvna.autoconnect()      # or: nvna.connect("COM6")
+found, connected = nvna.autoconnect()      # or: nvna.connect("COM22")
 if connected:
     print("device connected")
     # ... do work ...
@@ -502,7 +502,23 @@ else:
     print("ERROR: could not connect to port")
 ```
 
+
+Example output for this method is as follows:
+
+```python
+
+bytearray(b'Model:        NanoVNA-F_V2\r\nFrequency:    50k ~ 3GHz\r\nBuild time:   Mar  2 2021 - 09:40:50 CST\r')
+
+```
+
+
 ### Toggle Error Messages
+
+Currently, the following can be used to turn on or off returned error messages.
+
+1) the 'verbose' option. When enabled, detailed messages are printed out. 
+
+2) the 'errorByte' option. When enabled, if there is an error with the command or configuration, `b'ERROR'` is returned instead of the default `b''`. 
 
 ```python
 # detailed status messages ON
@@ -518,7 +534,13 @@ nvna.set_error_byte_return(False)
 
 ### Device and Library Help
 
-The device's own command list is available via the `help` command through the passthrough, and the library exposes method-level docstrings for each wrapped command:
+The `help` return can be accessed via the `help()` function call.
+
+```python
+nvna.help()
+```
+
+Or access the command list via the `help` command through the passthrough, and the library exposes method-level docstrings for each wrapped command:
 
 ```python
 # the device's built-in command list
@@ -528,12 +550,13 @@ print(nvna.command("help"))
 help(nvna.scan)
 ```
 
+The `help` command returns bytearray in the format `bytearray(b'commands:......')`
+
 ### Selecting a Device Model
 
-UPDATE THIS - this section is new and needs a polish. the cut text might be relevant, but it's getting hard to skim.
+When using the library, the `nanoVNA()` class is seeded with the NanoVNA-F V2 envelope by default. 
 
-
-A fresh `nanoVNA()` is seeded with the NanoVNA-F V2 envelope by default. If you have a different model, select its envelope so the library's range checks (sweep points, frequency range, screen size, slot counts) match your hardware. `select_existing_device()` changes **library-side bounds only**; it does not change anything on the device.
+If you have a different model, select its envelope so the library's range checks (sweep points, frequency range, screen size, slot counts) match your hardware. `select_existing_device()` changes **library-side bounds only**; it does not change anything on the device.
 
 The shipped presets:
 
@@ -567,6 +590,12 @@ A note on the F V3 frequency ceiling: the device's firmware `info` banner report
 
 ### Getting Data from the Active Screen
 
+See other sections for the following examples:
+* [Saving Screen Images](#saving-screen-images)
+* [Plotting Data with Matplotlib](#plotting-data-with-matplotlib)
+
+The most straight forward way to get data from an active screen is with the `data` command. This will pull data from an active screen. It will not adjust the range or number of points before a read. If the range needs to be adjusted prior to a read, use `scan` instead.
+
 S-parameter data for the most recent sweep is read with the `data` command: `data 0` returns S11, `data 1` returns S21, and `data 2`–`6` return the calibration tables. The matching frequency axis comes from `frequencies`.
 
 ```python
@@ -575,6 +604,81 @@ s11 = nvna.get_s11_data()          # data 0  -> real/imag pairs
 freqs = nvna.frequencies()         # matching frequency axis (Hz)
 nvna.resume()
 ```
+
+### Analysis of the Returned Data from the NanoVNA
+
+This first example shows how to get measured data on the screen (using `data`) or to specify the read range and then measure with `scan`. Data returned will always be in a bytearray, but it will need to be converted in order to work with it.
+
+
+```python
+# import NanoVNA library
+# (NOTE: check library path relative to script path)
+from src.nanoVNA_python import nanoVNA 
+import time
+import serial
+
+# create a new tinySA object    
+nvna = nanoVNA()
+
+# set the return message preferences 
+nvna.set_verbose(True) #detailed messages
+nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
+
+
+# attempt to autoconnect
+found_bool, connected_bool = nvna.autoconnect()
+
+# if port closed, then return error message
+if connected_bool == False:
+    print("ERROR: could not connect to port")
+else: # if port found and connected, then complete task(s) and disconnect
+
+    # set up some parameters for the scan
+    # NanoVNA takes freq in Hz, as ints
+    start = int(1e9) # 1 GHz, as an int. 
+    stop = int(3e9)  # 3 GHz, as an int.
+    pts = 200
+
+    # SCAN can change range and number of pts
+    # get the frequency valuess (the Y Axis of the screen)
+    freq = nvna.get_scan_frequencies(start, stop, pts)
+    print(freq)
+    # get the S11 data
+    s11 = nvna.get_scan_s11(start, stop, pts)
+    print(s11)
+    # get the S21 data
+    s21 = nvna.get_scan_s21(start, stop, pts)
+    print(s21)
+
+    # DATA gets the data on the screen
+    # get the S11 data
+    s11 = nvna.get_s11_data()
+    print(s11)
+    # get the S21 data
+    s21 = nvna.get_s21_data()
+    print(s21)
+
+    nvna.resume() #resume 
+
+    nvna.disconnect()
+
+
+```
+
+The requested frequencies are in the following format:
+```python
+bytearray(b'1000000 \r\n1020000 \r\n1040000 \r\n1060000 \r\n1080000 \r\n1100000 \r\n1120000 \r\n1140000 \r\n1160000 \r\n1180000 \r\n1200000 \r\n1220000 \r\n1240000 \r\n1260000 \r\n1280000 \r\n1300000 \r\n1320000 \r\n1340000 \r\n1360000 \r\n1380000 \r\n1400000 \r\n1420000 \r\n1440000 \r\n1460000 \r\n1480000 \r\n1500000 \r\n1520000 \r\n1540000 \r\n1560000 \r\n1580000 \r\n1600000 \r\n1620000 \r\n1640000 \r\n1660000 \r\n1680000 \r\n1700000 \r\n1720000 \r\n1740000 \r\n1760000 \r\n1780000 \r\n1800000 \r\n1820000 \r\n1840000 \r\n1860000 \r\n1880000 \r\n1900000 \r\n1920000 \r\n1940000 \r\n1960000 \r\n1980000 \r\n2000000 \r\n2020000 \r\n2040000 \r\n2060000 \r\n2080000 \r\n2100000 \r\n2120000 \r\n2140000 \r\n2160000 \r\n2180000 \r\n2200000 \r\n2220000 \r\n2240000 \r\n2260000 \r\n2280000 \r\n2300000 \r\n2320000 \r\n2340000 \r\n2360000 \r\n2380000 \r\n2400000 \r\n2420000 \r\n2440000 \r\n2460000 \r\n2480000 \r\n2500000 \r\n2520000 \r\n2540000 \r\n2560000 \r\n2580000 \r\n2600000 \r\n2620000 \r\n2640000 \r\n2660000 \r\n2680000 \r\n2700000 \r\n2720000 \r\n2740000 \r\n2760000 \r\n2780000 \r\n2800000 \r\n2820000 \r\n2840000 \r\n2860000 \r\n2880000 \r\n2900000 \r\n2920000 \r\n2940000 \r\n2960000 \r\n2980000 \r\n3000000 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r\n0 \r')
+```
+These frequencies represent where in the frequency range the measurements have been taken, and are returned in `kHz`. That is, the last reading before the padding 0-s start is '3000000'. This value is actually '3000000e3', or 3 GHz, not 3 MHz. 
+
+
+Returned S11 and S21 data are in the format:
+```python
+bytearray(b'0.414528 0.623509 \r\n0.512547 0.542835 \r\n0.552637 0.489537 \r\n0.602180 0.444314 \r\n0.674851 0.374883 \r\n0.721209 0.316875 \r\n0.770192 0.216239 \r\n0.790564 0.140702 \r\n0.804490 0.037844 \r\n0.802676 -0.086580 \r\n0.784412 -0.188284 \r\n0.757563 -0.260674 \r\n0.718249 -0.342237 \r\n0.664428 -0.416341 \r\n0.617326 -0.480844 \r\n0.568474 -0.533208 \r\n0.492809 -0.581321 \r\n0.460760 -0.616593 \r\n0.384558 -0.668559 \r\n0.314043 -0.682421 \r\n0.245858 -0.719574 \r\n0.194356 -0.714597 \r\n0.118920 -0.738018 \r\n0.066108 -0.737820 \r\n0.010847 -0.744120 \r\n-0.045027 -0.754767 \r\n-0.101323 -0.761777 \r\n-0.172184 -0.763956 \r\n-0.248799 -0.752455 \r\n-0.322770 -0.734302 \r\n-0.386569 -0.712150 \r\n-0.465589 -0.678363 \r\n-0.538067 -0.640787 \r\n-0.614912 -0.575165 \r\n-0.675761 -0.518579 \r\n-0.719431 -0.459212 \r\n-0.762334 -0.381576 \r\n-0.804731 -0.287837 \r\n-0.828170 -0.205799 \r\n-0.847075 -0.126603 \r\n-0.857135 -0.029673 \r\n-0.849052 0.066982 \r\n-0.834792 0.182195 \r\n-0.805081 0.263328 \r\n-0.756838 0.355655 \r\n-0.699059 0.442736 \r\n-0.627638 0.513114 \r\n-0.526945 0.592252 \r\n-0.424149 0.632364 \r\n-0.313906 0.655601 \r\n-0.181712 0.653672 \r\n-0.125724 0.615638 \r\n-0.053355 0.591899 \r\n0.009786 0.579131 \r\n0.073450 0.570709 \r\n0.166064 0.538408 \r\n0.250542 0.481270 \r\n0.324851 0.387106 \r\n0.371485 0.280715 \r\n0.392284 0.164942 \r\n0.372584 0.048407 \r\n0.321884 -0.054561 \r\n0.248533 -0.125397 \r\n0.153565 -0.178265 \r\n0.061536 -0.194453 \r\n-0.013059 -0.182995 \r\n-0.085104 -0.155251 \r\n-0.138454 -0.125033 \r\n-0.184962 -0.078549 \r\n-0.225650 -0.029733 \r\n-0.239032 0.054426 \r\n-0.229694 0.126419 \r\n-0.195660 0.184412 \r\n-0.150762 0.222993 \r\n-0.089336 0.251350 \r\n-0.039771 0.261744 \r\n0.009027 0.261116 \r\n0.065524 0.260008 \r\n0.110400 0.234943 \r\n0.140959 0.225260 \r\n0.193066 0.202232 \r\n0.260522 0.159201 \r\n0.309473 0.106962 \r\n0.343722 0.029135 \r\n0.362852 -0.053262 \r\n0.367468 -0.136931 \r\n0.371292 -0.227675 \r\n0.363786 -0.314572 \r\n0.318734 -0.411707 \r\n0.260611 -0.519830 \r\n0.184881 -0.579277 \r\n0.113375 -0.670024 \r\n-0.006515 -0.709672 \r\n-0.088562 -0.746757 \r\n-0.209147 -0.763733 \r\n-0.318236 -0.751811 \r\n-0.424684 -0.736606 \r\n-0.525702 -0.713903 \r\n-0.608816 -0.662751 \r\n-0.673664 -0.612937 \r\n-0.737695 -0.554410 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r')
+```
+
+The last value before the padding is ` -0.737695 -0.554410`. The first number is the `real` part of the signal, and the second number is the `imaginary` part of the signal. All signals are returned in two parts for each measurement. 
+
 
 ### Saving Screen Images
 
