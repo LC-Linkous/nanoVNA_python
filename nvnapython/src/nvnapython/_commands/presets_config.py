@@ -30,13 +30,27 @@ class PresetsConfigMixin:
     def save(self, val=1):
         # saves the current settings to a preset, where 0 is the startup preset.
         # usage: save [0-4]
-        # example return: ''
+        # example return: ''  (see the note below -- the device does NOT prompt)
+        #
+        # IMPORTANT: 'save' writes to FLASH and the NanoVNA-F V2/V3 firmware does
+        # NOT send the 'ch>' prompt back for it (confirmed on hardware: 'save 0'
+        # returns only its echo, no prompt, even after 30 s). Waiting for the
+        # prompt would always hit the serial timeout and could leave the port
+        # blocked, so we send 'save' fire-and-forget: write, settle for the flash
+        # write, drain, and return without awaiting a prompt.
+        #
+        # Because the device does not acknowledge, the return is NOT a reliable
+        # success signal. To confirm a save persisted, power-cycle the device and
+        # recall(val). Avoid issuing another serial command immediately after a
+        # save; if you need to keep talking to the device, do the save LAST.
 
         accepted_vals = [0, 1, 2, 3, 4]
         if val in accepted_vals:
             writebyte = 'save ' + str(val) + '\r\n'
-            msgbytes = self.nanoVNA_serial(writebyte, printBool=False)
-            self.print_message("saving to preset " + str(val))
+            msgbytes = self.nanoVNA_serial_no_wait(writebyte)
+            self.print_message("save() sent for preset " + str(val) +
+                               " (flash write; device does not acknowledge -- "
+                               "power-cycle and recall to verify)")
         else:
             self.print_message("ERROR: save() takes vals [0 - 4] as integers")
             msgbytes = self.error_byte_return()

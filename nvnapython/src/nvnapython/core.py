@@ -300,6 +300,49 @@ class nanoVNA(
 
         return msgbytes
 
+    def nanoVNA_serial_no_wait(self, writebyte, settle_s=0.6):
+        # Write a command but do NOT wait for a 'ch>' prompt.
+        #
+        # WHY THIS EXISTS: a few commands write to FLASH (notably 'save', and on
+        # some firmware 'saveconfig'). During the flash write the NanoVNA-F V2/V3
+        # firmware stops servicing the serial interface and NEVER sends the 'ch>'
+        # prompt back for that command -- confirmed on hardware: 'save 0' returns
+        # only its echo ('save 0\r\n') and no prompt, even after 30 s. Routing
+        # 'save' through the normal nanoVNA_serial (which waits for the prompt)
+        # therefore always hits the full serial timeout, and the next command can
+        # collide with the still-recovering device and block the port on Windows.
+        #
+        # So for these commands we write, wait a fixed settle for the flash write
+        # to finish, drain any bytes the device did emit (the echo, and possibly a
+        # late prompt on firmware that does recover), and return WITHOUT awaiting a
+        # prompt. The command still executes on the device; we simply don't depend
+        # on an acknowledgement that may never come.
+        #
+        # NOTE: because the device does not acknowledge, the return here is only
+        # whatever bytes happened to arrive within the settle window -- it is NOT a
+        # reliable success signal. To confirm a save persisted, power-cycle and
+        # 'recall' the slot.
+        import time
+        self.ser.reset_input_buffer()
+        self.ser.reset_output_buffer()
+        self.ser.write(bytes(writebyte, 'utf-8'))
+
+        time.sleep(settle_s)
+        collected = bytearray()
+        try:
+            if self.ser.in_waiting:
+                collected += self.ser.read(self.ser.in_waiting)
+        except Exception:
+            pass
+        # one more brief drain pass in case a tail arrives just after
+        try:
+            time.sleep(self.serialPollInterval)
+            if self.ser.in_waiting:
+                collected += self.ser.read(self.ser.in_waiting)
+        except Exception:
+            pass
+        return self.clean_return(bytearray(collected))
+
     def get_serial_return(self):
         # Read the device reply, accumulating until the 'ch>' prompt arrives.
         #
