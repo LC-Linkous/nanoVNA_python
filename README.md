@@ -682,6 +682,11 @@ The last value before the padding is ` -0.737695 -0.554410`. The first number is
 
 ### Saving Screen Images
 
+<p align="center">
+        <img src="media/example_screen_capture.png" alt="Capture of On-screen Trace Data" height="300">
+</p>
+   <p align="center">Capture On-Screen Trace Data from 1 GHz to 3 GHzz</p>
+
 
  The `capture()` function can be used to capture the screen and output it to an image file. Note that the screen size varies by device. The library itself does not have a function for saving to an image (requires an additional library), but examples and the CLI wrapper have this functionality.
 
@@ -707,13 +712,52 @@ img.save("screen.png")
 A complete version with command-line options is `examples/screen_capture.py`. Note: if the device is interrupted mid-capture it can become briefly unresponsive (Windows may report "a device attached to the system is not functioning") — power-cycle the NanoVNA to recover, and avoid hammering captures back-to-back.
 
 
-<p align="center">
-        <img src="media/example_screen_capture.png" alt="Capture of On-screen Trace Data" height="350">
-</p>
-   <p align="center">Capture On-Screen Trace Data from 1 GHz to 3 GHzz</p>
-
 
 ### Plotting Data with Matplotlib
+
+
+#### **Example 1: Plot Trace Data**
+
+
+<p align="center">
+        <img src="media/example_scan_plot.png" alt="Plot of On-screen Trace Data" height="350">
+</p>
+   <p align="center">Plotted On-Screen Trace Data of a Frequency Sweep from 1 GHz to 3 GHz</p>
+
+This example plots the last/current sweep of data from the NanoVNA device. 
+`scan()` gets the trace data. `byteArrayToNumArray(byteArr)` takes in the returned trace data and frequency 
+information and converts them to arrays that are then plotted using `matplotlib`
+
+
+This example has 4 subplots because there is a lot of information returned with each sweep of the NanoVNA. The top, left plot shows the real and imaginary parts of the signal. This is the data as it is returned directly from the NanoVNA device. The top, right plot shows the calculated magnitude data. The bottom plots are the calculated phase response and Smith Chart, on the left and right, respectively. 
+
+#### **Example 1: Plot Trace Data**
+
+
+<p align="center">
+        <img src="media/example_scan_plot.png" alt="Plot of On-screen Trace Data" height="350">
+</p>
+   <p align="center">Plotted On-Screen Trace Data of a Frequency Sweep from 1 GHz to 3 GHz</p>
+
+
+A runnable version of this example is `examples/plotting_scan.py`.  This example plots the last/current sweep of data from the NanoVNA device. `get_scan_s11()` (a `scan()` alias for outmask 2) gets the S11 trace data, and `convert_s11_data_to_arrays(...)` parses the returned real/imaginary pairs into arrays that are then plotted using `matplotlib`.
+
+This example has 4 subplots because there is a lot of information returned with each sweep of the NanoVNA. The top, left plot shows the real and imaginary parts of the signal. This is the data as it is returned directly from the NanoVNA device. The top, right plot shows the calculated magnitude data. The bottom plots are the calculated phase response and Smith Chart, on the left and right, respectively.
+
+
+#### **Example 2: Plot a Static Waterfall using SCAN and Calculated Frequencies**
+
+<p align="center">
+        <img src="media/example_static_waterfall.png" alt="Waterfall Plot for SCAN Data Over 20 Readings" height="350">
+</p>
+   <p align="center">Waterfall Plot for SCAN Data Over 20 Readings</p>
+
+This example uses the `scan()` read to collect data over a specified number of reads and then displays it as magnitude/phase waterfalls plus the latest single scan. Data is exported to a specified .csv for logging. The collection can be interrupted at any time in the terminal (typically Ctrl + C).
+
+A runnable version of this example is `examples/plotting_waterfall_static.py`.
+
+
+####
 
 The plotting examples scan S11 (or S21) over a band and plot magnitude (dB), phase, and a complex-plane (Smith-style) scatter, or build a waterfall over repeated scans. They require the `[plotting]` extra. See `examples/plotting_scan.py`, `examples/plotting_waterfall_static.py`, and `examples/plotting_waterfall_realtime.py`.
 
