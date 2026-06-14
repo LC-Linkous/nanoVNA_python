@@ -155,64 +155,12 @@ Python 3.9+ is recommended. The examples are written for a NanoVNA-F V2 by defau
 
 ## Structure
 
-The `nvnapython` library, as it is available on PyPI, is structured as follows:
-
-```
-nvnapython/
-├── .python-version
-├── pyproject.toml
-├── README.md
-├── LICENSE
-├── .gitignore
-├── src/
-│   └── nvnapython/
-│       ├── __init__.py
-│       ├── core.py
-│       ├── constants.py
-│       ├── _bounds.py
-│       ├── py.typed
-│       └── _commands/
-│           ├── __init__.py
-│           ├── acquisition.py
-│           ├── calibration.py
-│           ├── display_ui.py
-│           ├── markers_traces.py
-│           ├── presets_config.py
-│           └── system_info.py
-└── tests/
-    ├── __init__.py
-    ├── conftest.py
-    ├── fakes.py
-    ├── test_smoke.py
-    ├── test_acquisition.py
-    ├── test_calibration.py
-    ├── test_display_ui.py
-    ├── test_markers_traces.py
-    ├── test_presets_config.py
-    ├── test_system_info.py
-    ├── test_parsing.py
-    ├── test_core_serial.py
-    ├── test_bounds_helper.py
-    ├── test_boundary_safety.py
-    ├── test_command_coverage.py
-    ├── test_edge_cases.py
-    ├── test_hardware_captures.py
-    ├── test_hardware.py
-    ├── test_hardware_audit.py
-    ├── test_hardware_boundaries.py
-    ├── test_hardware_probe.py
-    ├── test_hardware_capture_probe.py
-    ├── readme_capture.md
-    ├── collect_readme_data.py
-    └── run_all_tests.py
-```
-
 The public API is `from nvnapython import nanoVNA`, which exposes the full `nanoVNA` class. The per-command methods live in mixin modules under `_commands/` and are composed onto the `nanoVNA` class in `core.py`, which holds the shared state, serial handling, model envelope, and helper methods. `constants.py` holds the per-model envelopes (frequency range, max points, screen size, slot counts) and `_bounds.py` the range-checking helpers.
 
 This library is also part of the `nanoVNA_python` repository, which includes more extensive documentation, runnable examples, and the working development. The GitHub repository is structured as follows:
 
 ```
-nanoVNA_python/
+nvnapython/
 ├── README.md
 ├── LICENSE
 ├── pyproject.toml
@@ -611,19 +559,15 @@ This first example shows how to get measured data on the screen (using `data`) o
 
 
 ```python
-# import NanoVNA library
-# (NOTE: check library path relative to script path)
-from src.nanoVNA_python import nanoVNA 
+# import the NanoVNA library (installed package: pip install -e . from the repo root)
+from nvnapython import nanoVNA
 import time
-import serial
 
-# create a new tinySA object    
+# create a new nanoVNA object
 nvna = nanoVNA()
-
-# set the return message preferences 
-nvna.set_verbose(True) #detailed messages
-nvna.set_error_byte_return(True) #get explicit b'ERROR' if error thrown
-
+# set the return message preferences
+nvna.set_verbose(True)            # detailed messages
+nvna.set_error_byte_return(True)  # explicit b'ERROR' if a command is rejected
 
 # attempt to autoconnect
 found_bool, connected_bool = nvna.autoconnect()
@@ -631,38 +575,37 @@ found_bool, connected_bool = nvna.autoconnect()
 # if port closed, then return error message
 if connected_bool == False:
     print("ERROR: could not connect to port")
-else: # if port found and connected, then complete task(s) and disconnect
+else:  # if port found and connected, then complete task(s) and disconnect
+    # set up some parameters for the scan.
+    # The NanoVNA takes frequencies in Hz, as ints.
+    start = int(1e9)  # 1 GHz, as an int
+    stop = int(3e9)   # 3 GHz, as an int
+    pts = 200         # sample points (<= the model max; 201 on the F V2)
 
-    # set up some parameters for the scan
-    # NanoVNA takes freq in Hz, as ints
-    start = int(1e9) # 1 GHz, as an int. 
-    stop = int(3e9)  # 3 GHz, as an int.
-    pts = 200
+    # pause the live sweep so the reads are stable
+    nvna.pause()
 
-    # SCAN can change range and number of pts
-    # get the frequency valuess (the Y Axis of the screen)
-    freq = nvna.get_scan_frequencies(start, stop, pts)
+    # SCAN runs a fresh sweep and can change the range and number of points.
+    # get the frequency values (the X axis of the sweep)
+    freq = nvna.get_scan_frequencies(start, stop, pts)   # scan, outmask 1
     print(freq)
     # get the S11 data
-    s11 = nvna.get_scan_s11(start, stop, pts)
+    s11 = nvna.get_scan_s11(start, stop, pts)            # scan, outmask 2
     print(s11)
     # get the S21 data
-    s21 = nvna.get_scan_s21(start, stop, pts)
+    s21 = nvna.get_scan_s21(start, stop, pts)            # scan, outmask 4
     print(s21)
 
-    # DATA gets the data on the screen
+    # DATA reads back the most recent sweep already on the device (no new sweep).
     # get the S11 data
-    s11 = nvna.get_s11_data()
+    s11 = nvna.get_s11_data()                            # data 0
     print(s11)
     # get the S21 data
-    s21 = nvna.get_s21_data()
+    s21 = nvna.get_s21_data()                            # data 1
     print(s21)
 
-    nvna.resume() #resume 
-
+    nvna.resume()       # resume so the screen isn't left frozen
     nvna.disconnect()
-
-
 ```
 
 The requested frequencies are in the following format:
@@ -795,20 +738,558 @@ nvna.resume()
 
 The library wraps the documented NanoVNA serial commands. Each device command and its library method(s) are listed below. Alias methods (e.g. `get_*`) are provided for readability and are not exhaustive. Argument validation is performed against the selected model envelope where applicable.
 
+
+This section is sorted by the NanoVNA commands, and includes:
+* A brief description of what the command does
+* What the original usage looked like
+* The nanoVNA_python function call, or calls if multiple options exist 
+* Example return, or example format of return
+* Any additional notes about the usage
+
 > **Note:** the exact command set and argument ranges vary by model and firmware. The mappings below were confirmed against the NanoVNA-F V2 (firmware 0.3.0). Always cross-check with your device's `help` output and official documentation.
 
 
-UPDATING TABLE BC FORMAT is GROSS
+Quick Link Table:
+|  |   |     |   |       |      |      |
+|-------|-------|-------|-------|-------|-------|-------|
+| [beep](#beep) | [cal](#cal) | [capture](#capture) | [clearconfig](#clearconfig) | [cwfreq](#cwfreq) | [data](#data) | [edelay](#edelay) |
+| [frequencies](#frequencies) | [help](#help) | [info](#info) | [LCD](#LCD) | [LCD_ID](#LCD_ID) | [lcd](#lcd) | [marker](#marker) |
+| [pause](#pause) | [port](#port) | [pwm](#pwm) | [recall](#recall) | [reset](#reset) | [resolution](#resolution) | [restart](#restart) |
+| [resume](#resume) | [save](#save) | [saveconfig](#saveconfig) | [scan](#scan) | [SN](#SN) | [sweep](#sweep) | [touchcal](#touchcal) |
+| [touchtest](#touchtest) | [trace](#trace) | [version](#version) |  |  |  |  |
 
 
 
+### **beep**
+* **Description:** Turn the beep on or off. 
+* **Original Usage:** `beep [on|off]`
+* **Direct Library Function Call:** `beep()`
+* **Example Return:** `b''`
+* **Alias Functions:**
+    * `beep_on()`
+    * `beep_off()`
+    * `beep_time(val=Int)`
+* **CLI Wrapper Usage:**
+* **Notes:** Beep plays a continious tone until it is turned off. 
 
+
+### **cal**
+* **Description:** Work through the calibration process. Requires physical interaction with the device
+* **Original Usage:** `cal [load|open|short|thru|done|reset|on|off]`
+* **Direct Library Function Call:** `cal(val=load|open|short|thru|done|reset|on|off|in)`
+* **Example Return:** ``
+* **Alias Functions:**
+    * `cal_load()` - calibrate with the load connector
+    * `cal_open()` - calibrate with the open connector
+    * `cal_short()`- calibrate with the short connector
+    * `cal_thru()` - calibrate with cable connected to both ports
+    * `cal_done()` - done with calibration
+    * `cal_reset()` - reset calibration data. Do this BEFORE calibrating
+    * `cal_on()`  - start measuring with calibration, apply it to device
+    * `cal_off()` - stop messing with calibration being applied to device
+* **CLI Wrapper Usage:**
+* **Notes:**  
+    * `cal` - no argument gets the calibration status
+    * `cal load` - calibrate with the load connector. Hardware must be attached before calibration
+    * `cal open` - calibrate with the open connector. Hardware must be attached before calibration
+    * `cal short` - calibrate with the open connector. Hardware must be attached before calibration
+    * `cal thru` - calibrate with cable connected to both ports. Hardware must be attached before calibration
+    * `cal done` - complete the calibration
+    * `cal reset` - reset calibration data. Do this BEFORE calibrating
+    * `cal on` - start measuring with calibration, apply it to device
+    * `cal off` - stop measuring with calibration being applied to device
+    * `cal in` - this is in the documentation, but has no button on the NanoVNA-F V2. Might be a later feature. 
+
+
+### **capture**
+* **Description:** Requests a screen dump to be sent in binary format of HEIGHTxWIDTH pixels of each 2 bytes
+* **Original Usage:** `capture`
+* **Direct Library Function Call:** `capture()`
+* **Example Return:** `format:'\x00\x00\x00\x00\x00\x00\x00\...x00\x00\x00'`
+* **Alias Functions:**
+    * `capture_screen()`
+* **CLI Wrapper Usage:**
+* **Notes:** Data is in little-endian mode. Screen resolution is 800*480 for NanoVNA-F V2 and V3 
+
+
+### **clearconfig**
+* **Description:** Resets the configuration data to factory defaults
+* **Original Usage:** `clearconfig`
+* **Direct Library Function Call:** `clear_config()`
+* **Example Return:** `b'Config and all calibration data cleared. \r\n Do reset manually to take effect. Then do touch calibration and save.\r'`
+* **Alias Functions:**
+    * `clear_and_reset()`
+* **CLI Wrapper Usage:**
+* **Notes:** Requires password '1234'. Hardcoded. Other functions need to be used with this to complete the process. This causes the deletion of ALL settings and calibration. USE WITH CAUTION.
+
+
+### **cwfreq**
+* **Description:** Set the continuous wave (CW) pulse frequency
+* **Original Usage:** `cwfreq {frequency in Hz}`
+* **Direct Library Function Call:** `cwfreq(val=Int|Freq in Hz)`
+* **Example Return:**  ``
+* **Alias Functions:**
+    * `set_cwfreq(val=Int|Freq in Hz)` 
+* **CLI Wrapper Usage:**
+* **Notes:**   
+
+
+### **data**
+* **Description:** Gets the trace data for either S11 or S21, or the calibration.
+* **Original Usage:** `data {0..6}` 
+* **Direct Library Function Call:** `data(val=None|0|1|2|3|4|5|6)`
+* **Example Return:** 
+    * `data 0`: 
+    ` format bytearray(b'-0.086151 0.957274\r\n1.013057 -0.197761\r\n0.944041 -0.348532\r\n0.858225 -0....\r\n-0.588183 -0.481691\r\n-0.646600 -0.426130\r')`
+    * `data 7`: out of bounds. 
+    `bytearray(b'usage: data [array]\r')` 
+* **Alias Functions:**
+    * `get_s11_data()`
+    * `get_s21_data()`
+    * `get_load_cal_data()`
+    * `get_open_cal_data()`
+    * `get_short_cal_data()`
+    * `get_thru_cal_data()`
+    * `get_isolation_cal_data()`
+* **CLI Wrapper Usage:**
+* **Notes:**  S11 data is printed by default, but can be selected with input `0` for S11 and input `1` for S21. Higher values are returns for the calibration, according to some documenation online (see references).
+    * `data 0` - S11
+    * `data 1` - S21
+    * `data 2` - cal load 
+    * `data 3` - cal open
+    * `data 4` - cal short
+    * `data 5` - cal thru
+    * `data 6` - cal isolation
+
+
+### **edelay**
+* **Description:** electrical delay. This lets users compensate for time delay caused by components attached to the port, such as cables, adapters, etc.
+* **Original Usage:** `edelay id`
+* **Direct Library Function Call:** `edelay(val=None|Int|Float)`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * `get_edelay()`
+    * `set_edelay(val=Int|Float)`
+* **CLI Wrapper Usage:**
+* **Notes:**  No params should get the current edelay value. If there is 1 parameter, the delay is in nanoseconds. 
+
+
+### **frequencies**
+* **Description:** Gets the frequencies used by the last sweep
+* **Original Usage:** `frequencies`
+* **Direct Library Function Call:**  `frequencies()`
+* **Example Return:**  `b'1500000000\r\n... \r\n3000000000\r'`
+* **Alias Functions:**
+    * `get_last_freqs()`
+* **CLI Wrapper Usage:**
+* **Notes:**   
+
+
+### **help**
+* **Description:** Gets a list of the available commands. Can be used to call NanoVNA help directly.
+* **Original Usage:** `help`
+* **Direct Library Function Call:** `help(val=None|0|1)`
+* **Example Return:**
+```python
+    bytearray(b'There are all commands\r\n
+    help:                lists all the registered commands\r\n
+    reset:               usage: reset\r\n
+    cwfreq:        
+    usage: cwfreq {frequency(Hz)}\r\n
+    saveconfig:          usage: saveconfig\r\n
+    clearconfig:         usage: clearconfig {protection key}\r\n
+    data:  
+    usage: data [array]\r\n
+    frequencies:         usage: frequencies\r\n
+    port:                usage: port {1:S11 2:S21}\r\n
+    scan:
+    usage: scan {start(Hz)} [stop] [points] [outmask]\r\n
+    sweep:               usage: sweep {start(Hz)} [stop] [points]\r\n
+    touchcal:            usage: touchcal\r\n
+    touchtest:           usage: touchtest\r\n
+    pause:               usage: pause\r\n
+    resume:              usage: resume\r\n
+    cal:
+    usage: cal [load|open|short|thru|done|reset|on|off|in]\r\n
+    save:                usage: save {id}\r\n
+    recall:              usage: recall {id}\r\n
+    trace:               usage: trace {id}\r\n
+    marker:              usage: marker [n] [off|{index}]\r\n
+    edelay:              usage: edelay {id}\r\n
+    pwm:       
+    usage: pwm {0.0-1.0}\r\n
+    beep:                usage: beep on/off\r\n
+    lcd:                 usage: lcd X Y WIDTH HEIGHT FFFF\r\n
+    capture:      
+    usage: capture\r\n
+    version:             usage: Show NanoVNA version\r\n
+    info:                usage: NanoVNA-F info\r\n
+    SN:                  usage: NanoVNA-F ID\r\n
+    resolution:          usage: LCD resolution\r\n
+    LCD_ID:              usage: LCD ID\r')   
+```
+* **Alias Functions:**
+    * `NanoVNA_Help()`
+* **CLI Wrapper Usage:**
+* **Notes:**  
+
+
+### **info**
+* **Description:** Displays various software/firmware and hardware information
+* **Original Usage:** `info`
+* **Direct Library Function Call:** `info()`
+* **Example Return:** `bytearray(b'Model:        NanoVNA-F_V2\r\nFrequency:    50k ~ 3GHz\r\nBuild time:   Mar  2 2021 - 09:40:50 CST\r')`
+* **Alias Functions:**
+    * `get_info()`
+* **CLI Wrapper Usage:**
+* **Notes:** 
+
+
+### **lcd**
+* **Description:** Draw rectangles on the screen
+* **Original Usage:** `lcd {X} {Y} {WIDTH} {HEIGHT} {FFFF}`
+* **Direct Library Function Call:** `lcd()`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * `draw_rect(X=Int, Y=Int, W=Int, H=Int, COL=4 digit hex)`
+* **CLI Wrapper Usage:**
+* **Notes:**  Pause the screen first, and then draw. When the screen refreshes, the rectangle will be erased from left to right.
+
+
+### **LCD_ID**
+* **Description:** Get the ID of the LCD screen
+* **Original Usage:** `LCD_ID`
+* **Direct Library Function Call:** `LCD_ID()`
+* **Example Return:** `bytearray(b'118200\r')`
+* **Alias Functions:**
+    * `get_LCD_ID()`
+* **CLI Wrapper Usage:**
+* **Notes:** 
+
+
+### **marker**
+* **Description:** sets or dumps marker info
+* **Original Usage:**  
+    * `marker [n] [on|off|{index}]`
+    * `marker [n] [off|{index}]`
+    * `marker [n] peak`
+* **Direct Library Function Call:** `marker(ID=Int|1..4, val="on"|"off"|"peak", idx=None|Int)`
+* **Example Return:** 
+    * `marker` with no active markers:
+        * `bytearray(b'')` - no active markers
+        * `bytearray(b'1 0 50\r\n2 40 0\r')` - 2 active markers
+    * `marker 1 25` - marker 1, data reading point 25
+        * `bytearray(b'')`
+    * `marker 1` - information about location
+        * `bytearray(b'1 25 2940000\r')`
+    * `marker 1 peak` - moves marker 1 to peak
+        * `bytearray(b'')`
+* **Alias Functions:**
+    * `get_all_marker_positions()`
+    * `get_marker_position(ID=Int)`
+    * `set_marker_position(ID=Int, idx=Int)` - idx is a point between 0-201, or whatever the limits of the reading for the device is if it's higher.
+    * `marker_peak(ID=Int)`
+    * `marker_on(ID=Int)`
+    * `marker_off(ID=Int)`
+* **CLI Wrapper Usage:**
+* **Notes:**  
+    * Marker indexes depend on what the device lists. 0 i
+    * `marker` no argument gets the attributes of the active markers.
+    * `marker {ID=integer}` gets the attributes of that marker
+    * The frequency must be within the selected sweep range mode.
+    * Alias functions need error checking. 
+
+
+### **pause**
+* **Description:** Pauses the sweep
+* **Original Usage:** `pause`
+* **Direct Library Function Call:** `pause()`
+* **Example Return:** `bytearray(b'')`
+* **Alias Functions:**
+    * None
+* **CLI Wrapper Usage:**
+* **Notes:** 
+
+
+### **pwm**
+* **Description:** Adjusts the PWM of the screen. This is screen brightness in this application.
+* **Original Usage:** `pwm`
+* **Direct Library Function Call:** `pwm(val=Float|0.0-1.0)`
+* **Example Return:** `bytearray(b'')`
+* **Alias Functions:**
+    * `set_screen_brightness(val=Float|0.0-1.0)`
+* **CLI Wrapper Usage:**
+* **Notes:** 
+    * 0.1 is 10% brightness, etc.
+
+
+### **recall**
+* **Description:** Loads a previously stored calibration from the device
+* **Original Usage:** ` recall 0..4...6`
+* **Direct Library Function Call:** `recall(val=0|1|2|3|4|5|6)`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * None
+* **CLI Wrapper Usage:**
+* **Notes:** where 0 is the startup preset. No arguments prints the frequency range of the save results. Appears to be the same as `save()` 
+
+
+### **reset**
+* **Description:** Resets the NanoVNA device. 
+* **Original Usage:** `reset`
+* **Direct Library Function Call:** `reset()`
+* **Example Return:** empty bytearray, serial error message. depends on the system.
+* **Alias Functions:**
+    * `reset_device()`
+* **CLI Wrapper Usage:**
+* **Notes:**  Disconnects the serial too, so will need to reconnect to continue using. 
+
+
+### **restart**
+* **Description:** Restarts the  tinySA after the specified number of seconds
+* **Original Usage:** `restart {seconds}`
+* **Direct Library Function Call:** `restart(val=0...)`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * `restart_device()`
+    * `cancel_restart()`
+* **CLI Wrapper Usage:**
+* **Notes:** 
+    *  Has not worked in testing on development DUT, but appears to work on some devices online.
+    *  0 seconds stops the restarting process. 
+
+
+### **resolution**
+* **Description:** Get the resolution of the LCD screen in pixels
+* **Original Usage:** `resolution`
+* **Direct Library Function Call:** `resolution()`
+* **Example Return:** `bytearray(b'800,480\r')`
+* **Alias Functions:**
+    * `get_resolution()`
+    * `lcd_resolution()`
+* **CLI Wrapper Usage:**
+* **Notes:** The screen resolution for the NanoVNA-F V2 and V3 is 800x480 pixels (width x height)
+
+
+### **resume**
+* **Description:** Resumes the sweep
+* **Original Usage:** `resume`
+* **Direct Library Function Call:** `resume()`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * None
+* **CLI Wrapper Usage:**
+* **Notes:** 
+
+
+### **save**
+* **Description:** Saves the current calibration data. Might save the current trace settings and marker position.
+* **Original Usage:** `save 0..4...6`
+* **Direct Library Function Call:** `save(val=None|0..4..6)`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * None
+* **CLI Wrapper Usage:**
+* **Notes:**  where 0 is the startup preset. No arguments prints the frequency range of the save results.
+
+
+### **saveconfig**
+* **Description:** Saves the device configuration data. This includes language and touch calibration. 
+* **Original Usage:** `saveconfig`
+* **Direct Library Function Call:** `save_config()`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * None
+* **CLI Wrapper Usage:**
+* **Notes:** 
+ 
+
+### **scan**
+* **Description:** Performs a scan and optionally outputs the measured data
+* **Original Usage:** `scan {start(Hz)} {stop(Hz)} [points] [outmask]`
+* **Direct Library Function Call:** `scan(start, stop, pts, outmask)`
+* **Example Return:** 
+    * `scan 1000000 2000000`
+        * No return. Sets the screen to scan between 1 MHz and 2 MHz. 
+    * `scan 1000000 2000000 200`
+        * `bytearray(b'')`. The outmask is `0` by default, so there's no printout.
+    * `scan 1000000 2000000 200 1`
+        * `bytearray(b'1000 \r\n1010 \r\n1020 \r\n1030 ... \r\n1980 \r\n1990 \r\n2000 ... \r\n0 \r'`
+        * The freuency points are returned, including a buffer of `\r\n0`
+        * Values are returned in `kHz`
+    * `scan 1000000 2000000 200 1`
+        * `bytearray(b'-1.134857 0.890570 \r\n-1.143237 0.889276... \r\n-1.411501 1.746581 \r\n-1.400607 1.754247 ... \r\n0.000000 0.000000 \r\n0.000000 0.000000 \r')`
+        * The S11 data is complex, with real and imaginary values. The padding is also complex.
+    * `scan 1000000 2000000 200 3`
+        * `bytearray(b'1000 -1.124556 0.885832 \r\n1010 -1.133325 0.882054....\r\n0 0.000000 0.000000 \r\n0 0.000000 0.000000 \r')`
+        *  When the frequency and S11 are returned, the data is the `freq in KHz` and then the 2 parts of the complex signal. The `padding` is has  3 blank float values.
+    * `scan 1000000 2000000 200 7`
+        * `bytearray(b'1000 -1.133184 0.885893 -0.000045 -0.000008 \r\n....\r\n0 0.000000 0.000000 0.000000 0.000000 \r'))`
+        *  When the frequency, S11, and S21 are returned, the data is the `freq in KHz` and then the 2 parts of the EACH complex signal, 4 signal parts in total. The `padding` has 5 blank float values.
+    * Returns for invalid input:
+        * `bytearray(b'sweep points exceeds range 51 -201\r')`
+        * `bytearray(b'frequency range is invalid\r')`
+* **Alias Functions:**
+    * `scan_range(start=Int, stop=Int)` - Scans. sets boundaries, does not return data 
+    * `get_scan_frequencies(start=Int, stop=Int, pts=Int)` - returns frequency data
+    * `get_scan_s11(start=Int, stop=Int, pts=Int)` - returns S11 data
+    * `get_scan_freqs_s11(start=Int, stop=Int, pts=Int)` - returns frequency and S11 data
+    * `get_scan_s21(start=Int, stop=Int, pts=Int)` - returns S21 data
+    * `get_scan_freqs_s21(start=Int, stop=Int, pts=Int)` - returns frequency and S21 data
+    * `get_scan_s11_s21(start=Int, stop=Int, pts=Int)` - returns S11 and S21 data
+    * `get_scan_freqs_s11_s21(start=Int, stop=Int, pts=Int)` - returns frequency, S11, and S21 data
+* **CLI Wrapper Usage:**
+* **Notes:**  
+    * `start` and `stop` are required values of frequencies are in Hz. Frequency returns are in kHz.
+    * `[points]` is the number of points in the scan. The MAX points is device dependent. 201 is a common max, end not inclusive.
+    * `[outmask]` 
+     * 0 = no printout
+     * 1 = frequency vals
+     * 2 = S11 of sweep points
+     * 3 = frequency values & S11 of sweep pts
+     * 4 = S21 of sweep pts
+     * 5 = frequency values and & S21 data of sweep pts
+     * 6 = S11 and S21 data of sweep points
+     * 7 = frequency values, S11 and S21 data of sweep points
+    
+
+### **SN**
+* **Description:** Get the unique serial number of the NanoVNA.
+* **Original Usage:** `SN`
+* **Direct Library Function Call:** `SN(None)`
+* **Example Return:** `bytearray(b'63507468C\r')` 
+* **Alias Functions:**
+    * `get_SN()`
+* **CLI Wrapper Usage:**
+* **Notes:** 
+    * NanoVNA-F ID  (hint returned by help for DUT)
+    * Example number changed from actual return. This is a 16-Bit serial number.
+
+
+### **sweep**
+* **Description:** Set sweep mode, frequency and points
+* **Original Usage:** 
+    * `sweep {start(Hz)} {stop(Hz)} {points}`
+    *  `sweep {start|stop|center|span|cw|points} {freq(Hz)}`
+* **Direct Library Function Call:** `config_sweep(argName=start|stop|center|span|cw, val=Int|Float)` AND `preform_sweep(start, stop, pts)`
+* **Example Return:** 
+    * empty bytearray `b''`
+    * bytearray(b'0 800000000 450\r')
+* **Alias Functions:**
+    * `get_sweep_params()`
+    * `set_sweep_start(val=Int)` - val is frequency in Hz
+    * `set_sweep_stop(val=Int)` - val is frequency in Hz
+    * `set_sweep_center(val=Int)` - val is frequency in Hz
+    * `set_sweep_span(val=Int)` - val is frequency in Hz
+    * `set_sweep_cw(val=Int)` - val is frequency in Hz
+    * `run_sweep(start=Int, stop=Int, pts=Int)`
+* **CLI Wrapper Usage:**
+* **Notes:**  
+ * `sweep` with no arguments lists the current sweep settings, the frequencies specified should be within the permissible range. 
+ * `sweep {integer}` is interpreted as start frequency value.
+ * `sweep {integer} {integer}` is interpreted as start and stop frequencies.
+ * `sweep {integer} {integer} {integer}` is interpreted as start and stop frequencies, and the number of points.
+* `sweep start {integer}`: sets the start frequency of the sweep.
+* `sweep stop {integer}`: sets the stop frequency of the sweep.
+* `sweep center {integer}`: sets the center frequency of the sweep.
+* `sweep span {integer}`: sets the span of the sweep.
+* `sweep cw {integer}`: sets the continuous wave frequency (zero span sweep). 
+
+ 
+### **touchcal**
+* **Description:** starts the touch calibration. Physical interaction with the device screen is required.
+* **Original Usage:** `touchcal`
+* **Direct Library Function Call:** `touch_cal()`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * `start_touch_cal()`
+* **CLI Wrapper Usage:**
+* **Notes:**  To save this, `saveconfig` must be used.
+
+
+### **touchtest**
+* **Description:** starts the touch test. When this command is used, the screen can be drawn on to check responsiveness. 
+* **Original Usage:** `touchtest`
+* **Direct Library Function Call:** `touch_test()`
+* **Example Return:** empty bytearray
+* **Alias Functions:**
+    * `start_touch_test()`
+* **CLI Wrapper Usage:**
+* **Notes:**  There may be instructions on screen. Pause the screen first to see the marks made on the screen.
+
+
+### **trace**
+* **Description:** displays all or one trace information or sets trace related information. INCOMPLETE due to how many combinations are possible.
+* **Original Usage:**  
+    * `trace [0|1|2|3|all] [off|logmag|linear|phase|smith|swr|polar|delay|refpos|channel] [value]`
+    * read the above as `trace {ID} {format/action} {value/channel}`
+* **Direct Library Function Call:** `trace(ID=None|Int, trace_format=None|String, val=None|Int)` 
+* **Example Return:** 
+     * empty bytearray  `b''`
+     * `trace`
+        * `bytearray(b'0 LOGMAG S11 1.000000 7.000000\r\n1 LOGMAG S21 1.000000 7.000000\r\n2 SMITH S11 1.000000 0.000000\r')`
+        * summary of all active traces
+    * `trace 0` - Information on Trace 0, S11
+        * `bytearray(b'0 LOGMAG S11\r')`
+    * `trace 1` - Information on Trace 1, S21
+        * `bytearray(b'1 LOGMAG S21\r')`
+    * `trace 0 linear 1` - Set trace 0 to linear, and set the input from chanel 1 (port 2)
+        * `bytearray(b'')`
+    * `trace 0 linear` - set the format of trace 0 to linear. This trace is by default on channel 0 (port 1)
+        * `bytearray(b'')`
+* **Alias Functions:**
+    * `get_all_trace_attr()`
+    * `get_trace_attr(ID=Int|"all")`
+    * `trace_off(ID=Int|"all")`
+    * `set_trace_logmag(ID=Int|"all")`
+    * `set_trace_linear(ID=Int|"all")`
+    * `set_trace_phase(ID=Int|"all")`
+    * `set_trace_smith(ID=Int|"all")`
+    * `set_trace_polar(ID=Int|"all")`
+    * `set_trace_swr(ID=Int|"all",val=Float|Int)`
+    * `set_trace_refposition(ID=Int|"all",val=Float|Int)`
+    * `set_trace_delay(ID=Int|"all",val=Float|Int)`
+    * `set_trace_channel(ID=Int|"all", val=Int)`
+* **CLI Wrapper Usage:**
+* **Notes:** 
+    * NOTE: Traces can be turned OFF programatically, but not ON.
+    * `trace` no args returns characteristics of active traces
+    * `trace {ID=integer}` gets characteristics of that trace. using 'all' returns information for all traces. 
+    * `trace {ID=integer} {str=logmag|phase|smith|linear|delay|swr}`  The ID sets the trace ID, and the second argument indicates what trace data format is returned. 
+    * `trace {ID=integer} {off}` turn the trace off. using 'all' will toggle all traces off. Traces cannot be turned 'on' with this method (conflicting documentation)
+    * `trace {ID=integer} {str=scale|refpos|channel} {val=int}` the first argument is the ID of the trace. The second argument is an action to `scale` the trace by a numeric value, to set the reference position (`refpos`), or to set the channel. The third value specifies the value for the action.
+
+
+### **version**
+* **Description:** returns the firmware version
+* **Original Usage:** `version`
+* **Direct Library Function Call:** `version()` 
+* **Example Return:** `bytearray(b'0.2.1\r')`
+* **Alias Functions:**
+    * `get_version()`
+* **CLI Wrapper Usage:**
+* **Notes:** 
 
 
 
 ## Additional Library Functions for Advanced Use
 
 ### `command`
+* **Description:** override library functions to run commands on the NanoVNA device directly. 
+* **Original Usage:** None. 
+* **Direct Library Function Call:** `command(val=Str)`
+* **Example Usage:**:
+    * example: `command("version")`
+    * return: `b'tinySA4_v1.4-143-g864bb27\r\nHW Version:V0.4.5.1.1 \r'`
+    * example: `command("trace 1")`
+    * return: `b'1: dBm 0.000000000 10.000000000 \r'`    
+    * example: `command("scan 150e6 200e6 5 2")`
+    * return: `b'5.750000e+00 0.000000000 \r\n6.250000e+00 0.000000000 \r\n6.750000e+00 0.000000000 \r\n6.250000e+00 0.000000000 \r\n6.750000e+00 0.000000000 \r'`        
+* **Example Return:** command dependent
+* **Alias Functions:**
+    * None
+* **CLI Wrapper Usage:**
+* **Notes:** If unfamiliar with device and operation, DO NOT USE THIS. There is no error checking and you will be interfacing with the NanoVNA device directly.
 
 ```python
 # send any command string directly to the device, no validation, cleaned reply returned
@@ -818,6 +1299,27 @@ raw = nvna.command("info")
 `command()` bypasses all library-side argument checking. It is the right tool for commands not yet wrapped, for experimentation, and for reproducing exact device behavior — but you are responsible for a valid command string.
 
 Other library-side helpers (no device traffic): `set_verbose` / `get_verbose`, `set_error_byte_return` / `get_error_byte_return`, `set_serial_timeout` / `get_serial_timeout`, `set_serial_poll_interval` / `get_serial_poll_interval`, the model/bounds setters and getters listed under [Selecting a Device Model](#selecting-a-device-model), and `decode_capture` / `capture_to_pixels` for image decoding.
+
+## Unrecognized Commands that Appear in Documentation
+
+These commands return the error message `Command not recognised.` from the device, not the library. They may appear in some versions of the firmware, but have not done anything to the DUT (NanoVNA-F V2).
+
+* `bandwidth`
+* `color`
+* `dump`
+* `freq` (frequency command is fine, but not shorter version)
+* `power`
+* `scan_bin`
+* `smooth`
+* `tcxo`
+* `threshold`
+* `time`
+* `transform`
+* `vbat`
+* `zero`
+* `s21offset`
+
+
 
 
 ## Library Development
@@ -837,26 +1339,89 @@ A `docs` site for the library may be added later for stable releases.
 
 ## Notes for Beginners
 
+
+This is a brief section for anyone that might have jumped in with a bit too much ambition. It is highly suggested to _read the manual_. 
+
+Very useful, important documentation can be found at:
+* The main website: [https://nanovna.com/](https://nanovna.com/)
+* Common troubleshooting and help pages:
+    * [About NanoVNA](https://nanovna.com/?page_id=21)
+    * [Start Using a NanoVNA](https://nanovna.com/?page_id=60)
+    * [How to Read the NanoVNA Screen](https://nanovna.com/?page_id=46)
+    * [Calibrating the NanoVNA](https://nanovna.com/?page_id=2)
+* The [Wiki and User Group](https://nanovna.com/?page_id=98)
+
+
+
+This library was modified from the [tinySA_python library](https://github.com/LC-Linkous/tinySA_python), and much of the material orignated there. These ARE NOT the same device, and have very different functionality, but some of the menus and commands are in the same format.
+
+* The [tinySA wiki](https://tinysa.org/wiki/pmwiki.php)
+* The getting started [first use](https://tinysa.org/wiki/pmwiki.php?n=Main.FirstUse) page
+* Frequently asked questions (FAQs) can be found on the [Wiki FAQs page](https://tinysa.org/wiki/pmwiki.php?n=Main.FAQ)
+
+
 ### Vocab Check
 
-* **VNA (Vector Network Analyzer):** measures both magnitude and phase of how an RF network reflects (S11) and transmits (S21) signals across a frequency range.
-* **S-parameters:** scattering parameters describing a network's ports. S11 is the reflection at port 1 (return loss); S21 is the transmission from port 1 to port 2 (insertion loss/gain).
-* **Sweep:** stepping the source across a frequency range and measuring at each point.
+Running list of words and acronyms that get tossed around with little to no explanation. Googling is recommended if you are not familiar with these terms as they're essential to understanding device usage.
+
+* **AGC** - Automatic Gain Control. This controls the overall dynamic range of the output when the input level(s) changes. 
+* **Baud** - Baud, or baud rate. The rate that information is transferred in a communication channel. A baud rate of 9600 means a max of 9600 bits per second is transmitted.
 * **Calibration standards:** known Short, Open, Load, and Thru references used to remove the test setup's own errors from measurements (see [Calibration Setup](#calibration-setup)).
+* **DANL** -  Displayed Average Noise Level (DANL) refers to the average noise level displayed on a spectrum analyzer. 
+* **dB** - dB (decibel) and dBm (decibel-milliwatts). dB (unitless) quantifies the ratio between two values, whereas dBm expresses the absolute power level (always relative to 1mW). 
+* **DUT** - Device Under Test. Used here to refer to the singular device used while initially writing the API. 
+* **IF** - Intermediate Frequency. A frequency to which a carrier wave is shifted as an intermediate step in transmission or reception - [Wikipedia](https://en.wikipedia.org/wiki/Intermediate_frequency)
+* **LNA** - Low Noise Amplifier. An electronic component that amplifies a very low-power signal without significantly degrading its signal-to-noise ratio - [Wikipedia](https://en.wikipedia.org/wiki/Low-noise_amplifier)
+* **Outmask** - "outmask" refers to a setting that determines additional formatting or optional features that are not a core argument for a command.
+    * For example, with the **hop** command, this value controls whether the device's output is a frequency or a level (power) signal. When the outmask is set to "1", the tinySA will output a frequency signal. When set to "2", the outmask will cause the tinySA to output a level signal, which is a measure of the signal's power or intensity
+* **RBW** - Resolution Bandwidth. Frequency span of the final filter (IF filter) that is applied to the input signal. Determines the fast-Fourier transform (FFT) bin size.
+* **SDR*** - Software Defined Radio. This is a software (computer) controlled radio system capable of sending and receiving RF signals. This type of device uses software to control functions such as  modulation, demodulation, filtering, and other signal processing tasks. Messages (packets) can be sent and received with this device.
 * **Smith chart:** a polar plot of complex reflection coefficient, the standard way to visualize S11.
+* **Signal Generator** -  used to create various types of repeating or non-repeating electronic signals for testing and evaluating electronic devices and systems.
+* **S-parameters** - are a way to characterize the behavior of radio frequency (RF) networks and components. They describe how much of a signal is reflected, transmitted or transferred between PORTS. In case of s11 (s-one-one), the return loss of a single antenna or port is measured. In s12 (s-one-two) or s21 (s-two-one), the interaction between ports is measured. 
+* **SA** -  Spectrum Analyzer. A device that measures the (power) magnitude of an input signal vs frequency. It shows signal as a spectrum.
+     * This is what the 'SA' in 'tinySA' is!
+* **SA** -  Signal Analyzer. A device that measures the properties of a single frequency signal. This can include power, magnitude, phase, and other features such as  modulation. 
+* **SNA** - Scalar Network Analyzer. A device that measures amplitude as it passes through the device. It can be used to determine gain, attenuation, or frequency response.  
+* **Sweep:** stepping the source across a frequency range and measuring at each point.
+* **SWR** - Standing Wave Ratio. SWR is an indication of how well an antenna is matched to a transmission line. A low SWR (close to 1:1) means there is minimal signal reflection and the power is being transmitted down the line eddiciently. A high SWR indicats and impedance mismatch between a DUT (or antenna, or network) and the transmission line, which in this case is internal to the NanoVNA.
+* **VNA** - Vector Network Analyzer. A device that measures the network parameters of electrical networks (typically, s-parameters). Can measure both measures both amplitude and phase properties. The [wiki article on network analyzers]( https://en.wikipedia.org/wiki/Network_analyzer_(electrical)) covers the topic in detail.  
 
 ### VNA vs. SA vs. LNA vs. SNA vs. SDR vs Signal Generator
+aka “what am I looking at and did I buy the right thing?”
+ 
 
-* **VNA** — vector network analyzer: measures S-parameters (magnitude **and** phase) of a network. This is what the NanoVNA is.
-* **SA** — spectrum analyzer: measures signal power vs frequency (magnitude only). The tinySA is an SA.
-* **SNA** — scalar network analyzer: like a VNA but magnitude only (no phase).
-* **LNA** — low-noise amplifier: a component, not an instrument; amplifies weak signals with minimal added noise.
-* **SDR** — software-defined radio: a receiver/transmitter whose processing is done in software.
-* **Signal generator** — produces a defined output signal; some SAs (like the tinySA) include one.
+**tinySA Vs. NanoVNA**: The tinySA and NanoVNA look a lot alike, and have some similar code, but they are NOT the same device. They are designed to measure different things. The tinySA is a spectrum analyzer (SA) while the NanoVNA is a vector network analyzer (VNA). Both have signal generation capabilities (to an extent, as OUTPUT), but the tinySA (currently) has expanded features for generating signals. This library was made for the NanoVNA line of devices. There is some overlap with the tinySA, but there is a seperate library for that device at [tinySA_python](https://github.com/LC-Linkous/tinySA_python).
+
+
+**VNA** – a vector network analyzer (VNA) measures parameters such as s-parameters, impedance and reflection coefficient of a radio frequency (RF) device under test (DUT). A VNA is used to characterize the transmission and reflection properties of the DUT by generating a stimulus signal and then measuring the device's response. This can be used to characterize and measure the behavior of RF devices and individual components. 
+    * ["What is a Vector Network Analyzer and How Does it Work?" - Tektronix ](https://www.tek.com/en/documents/primer/what-vector-network-analyzer-and-how-does-it-work)
+    * [NanoVNA @ https://nanovna.com/](https://nanovna.com/)
+
+**SA** - This one is context dependent. SA can mean either 'Spectrum Analyzer' (multiple frequencies) or 'Signal Analyzer' (single frequency). In the case of the tinySA it is 'Spectrum Analyzer' because multiple frequencies are being measured. A spectrum analyzer measures the magnitude of an external input signal vs frequency. It shows signal as a spectrum. The signal source does not need to be directly, physically connected to the SA, which allows for analysis of the wireless spectrum. This is the primary functionality of the tinySA, but it does have other features (such as signal generation). 
+
+**SNA** – a scalar network analyzer (SNA) measures amplitude as it passes through the device. It can be used to determine gain, attenuation, or frequency response. scalar network analyzers are less expensive than VNAs because they only measure the magnitude of the signal, not the phase.
+
+**LNA** - an electronic component designed to amplify weak incoming signals with minimal noise addition, thus improving the signal-to-noise ratio (SNR). This hardware is often attached (or built in) to the devices above. It is not a stand-alone device for signal generation or analysis. 
+
+**SDR** - a software defined radio (SDR) is a software (computer) controlled radio system capable of sending and receiving RF signals. This type of device uses software to control functions such as  modulation, demodulation, filtering, and other signal processing tasks. Messages  can be sent and received with this device. 
+
+**Signal Generator** - A signal generator is used to create various types of repeating or non-repeating electronic signals for testing and evaluating electronic devices and systems. These can be used for calibration, design, or testing. Some signal generators will only have sine, square, or pulses, while others allow for AM and FM modulation (which begins to crossover into SDR territory)
 
 ### Calibration Setup
 
-A NanoVNA measures the network *plus* its own cables/connectors. Calibration removes the setup's contribution. The common procedure is **SOLT** — Short, Open, Load, Thru — where you attach each known standard in turn and the device computes the correction. `examples/solt_calibration.py` walks through it interactively. Calibrate over the same sweep range you intend to measure, and re-calibrate if you change cables or range. Meaningful S21 measurements require a calibration that includes the Thru step.
+
+A NanoVNA measures the network plus its own cables/connectors. Calibration removes the setup's contribution, or the device's "bias" in your measurments. The common procedure is **SOLT** (Short, Open, Load, Thru) where you attach each known standard in turn and the device computes the correction. Some devices might not have a 'Thru' option, but this is getting less common as the technology gets better. 
+
+`examples/solt_calibration.py` walks through the SOLT proccess interactively. Calibrate over the same sweep range you intend to measure, and re-calibrate if you change cables or range. Meaningful S21 measurements require a calibration that includes the Thru step.
+
+
+Some tips:
+* The open, sort, and load pieces should be finger tight. If the piece will not turn, there's a high risk of cross threading if it's forced. 
+* The thru calibration should be done with the included cable. The cable impedance needs to match the impedance of the calibration kit. These are usually 50 ohms, but may be 75 ohms.
+* When the cable is attatched to port 1 and port 2, both connectors should be finger tight.
+
+
 
 ### Some General NanoVNA Notes
 
@@ -870,7 +1435,9 @@ A NanoVNA measures the network *plus* its own cables/connectors. Calibration rem
 
 ### How should I be using this?
 
-For scripting and automating measurements with a NanoVNA from Python — repeated scans, logging to CSV, screen capture, calibration, and integrating measurements into larger workflows. Start with the `examples/` directory. Read the official device documentation before driving the hardware experimentally.
+For scripting and automating measurements with a NanoVNA from Python when you don't need a full UI. This library does not replace the interactive UIs of the more official software. Instead, it makes the scripting process easier. 
+
+This library is useful for repeated scans, logging to CSV, screen capture, calibration, and integrating measurements into larger workflows. Start with the `examples/` directory. Read the official device documentation before driving the hardware experimentally.
 
 ### Will this be made into a REAL Python library I can import into my project?
 
@@ -883,9 +1450,69 @@ As development continues and as device behavior is confirmed on hardware. The Gi
 
 ## References
 
-UPDATE FOR NEW DOCS and website updates
+
+The original documentation for this project comes from the related [tinySA_python](https://github.com/LC-Linkous/tinySA_python) library. That library was taken and applied to the NanoVNA to get a baseline of what commands were shared, and what might be new (to the library) for the NanoVNA. These ARE NOT the same device, and have very different functionality, but some of the menus and commands are in the same format.
+
+
+* NAnoVNA Documentation PDF (link to download from hosting website) download found late in the documentation process, but has been a valuable (cross)reference:
+    * https://www.sysjoint.com/ueditor/php/upload/file/PDF/NanoVNA-F%20V3%20Portable%20Vector%20Network%20Analyzer%20User%20Guide%20V1.0.pdf
+
+The NanoVNA main site:
+* The main website: [https://nanovna.com/](https://nanovna.com/)
+* Common troubleshooting and help pages:
+    * [About NanoVNA](https://nanovna.com/?page_id=21)
+    * [Start Using a NanoVNA](https://nanovna.com/?page_id=60)
+    * [How to Read the NanoVNA Screen](https://nanovna.com/?page_id=46)
+    * [Calibrating the NanoVNA](https://nanovna.com/?page_id=2)
+* The [Wiki and User Group](https://nanovna.com/?page_id=98)
+
+
+* The [tinySA wiki](https://tinysa.org/wiki/pmwiki.php)
+* The getting started [first use](https://tinysa.org/wiki/pmwiki.php?n=Main.FirstUse) page
+* Frequently asked questions (FAQs) can be found on the [Wiki FAQs page](https://tinysa.org/wiki/pmwiki.php?n=Main.FAQ)
+
+
+* [tinySA HomePage](https://tinysa.org/wiki/)  https://www.tinysa.org/wiki/
+    * [tinySA PC control](https://tinysa.org/wiki/pmwiki.php?n=Main.PCSW) 
+        * https://tinysa.org/wiki/pmwiki.php?n=Main.PCSW 
+    * [tinySA USB Interface page](https://tinysa.org/wiki/pmwiki.php?n=Main.USBInterface_)
+        * https://tinysa.org/wiki/pmwiki.php?n=Main.USBInterface
+    * [tinySA list of general pages](https://tinysa.org/wiki/pmwiki.php?n=Main.PageList) 
+        * https://tinysa.org/wiki/pmwiki.php?n=Main.PageList
+
+* [http://athome.kaashoek.com/tinySA/python/]( http://athome.kaashoek.com/tinySA/python/ )
+* [official pyserial](https://pypi.org/project/pyserial/) https://pypi.org/project/pyserial/
+* https://groups.io/g/tinysa/topic/tinysa_screen_capture_using/82218670
+* The firmware on GitHub at https://github.com/erikkaashoek/tinySA
+    * https://github.com/erikkaashoek/tinySA/blob/main/main.c
+
+
+* Websites that have been trawled through for random bits of information:
+    * [https://www.passion-radio.fr/](https://www.passion-radio.fr/)
+        * They have a 'TinySA Menu Tree' PDF doc that has been very useful
+    * [The main TinySA GitHub](https://github.com/erikkaashoek/tinySA/)
+        * [main.c](https://github.com/erikkaashoek/tinySA/blob/434126dcc6eed40e4e9ba3d7ef67e17e0370c38f/main.c)
+    * [Spectrum Analyzer How-To Guide: What They Are, What They Measure, & How to Use Them](https://www.tek.com/en/documents/primer/what-spectrum-analyzer-and-why-do-you-need-one)
+        * https://www.tek.com/en/documents/primer/what-spectrum-analyzer-and-why-do-you-need-one
+
+
+* Hardware, S-parameters and 2 port networks:
+    * ["What is a Vector Network Analyzer and How Does it Work?" - Tektronix ](https://www.tek.com/en/documents/primer/what-vector-network-analyzer-and-how-does-it-work)
+    * [https://en.wikipedia.org/wiki/Scattering_parameters](https://en.wikipedia.org/wiki/Scattering_parameters)
+    * [https://www.microwaves101.com/encyclopedias/s-parameters](https://www.microwaves101.com/encyclopedias/s-parameters)
+    * ["Network Theory - Two-Port Networks" - tutorialspoint.com](https://www.tutorialspoint.com/network_theory/network_theory_twoport_networks.htm)
 
 
 ## Licensing
 
 This project is licensed under the GNU General Public License v2.0. See the [LICENSE](LICENSE) file for details.
+
+In more detail:
+
+The **code in this repository** has been released under GPL-2.0 for right now (and to have something in place rather than nothing). This licensing does NOT take priority over the official releases and the decisions of the NanoVNA team. This licensing does NOT take priority for any of their products, including the devices that can be used with this software. 
+
+
+This software is released AS-IS, meaning that there may be bugs (especially as it is under development). 
+
+
+This software is UNOFFICIAL, meaning that the NanoVNA team does not offer tech support for it, does not maintain it, and has no responsibility for any of the contents. 
