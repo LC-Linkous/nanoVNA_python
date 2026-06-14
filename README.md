@@ -724,25 +724,12 @@ A complete version with command-line options is `examples/screen_capture.py`. No
 </p>
    <p align="center">Plotted On-Screen Trace Data of a Frequency Sweep from 1 GHz to 3 GHz</p>
 
-This example plots the last/current sweep of data from the NanoVNA device. 
-`scan()` gets the trace data. `byteArrayToNumArray(byteArr)` takes in the returned trace data and frequency 
-information and converts them to arrays that are then plotted using `matplotlib`
+A runnable version of this example is `examples/plotting_scan.py`.  
+
+This example plots the last/current sweep of data from the NanoVNA device. `get_scan_s11()` (a `scan()` alias for outmask 2) gets the S11 trace data, and `convert_s11_data_to_arrays(...)` parses the returned real/imaginary pairs into arrays that are then plotted using `matplotlib`.
 
 
 This example has 4 subplots because there is a lot of information returned with each sweep of the NanoVNA. The top, left plot shows the real and imaginary parts of the signal. This is the data as it is returned directly from the NanoVNA device. The top, right plot shows the calculated magnitude data. The bottom plots are the calculated phase response and Smith Chart, on the left and right, respectively. 
-
-#### **Example 1: Plot Trace Data**
-
-
-<p align="center">
-        <img src="media/example_scan_plot.png" alt="Plot of On-screen Trace Data" height="350">
-</p>
-   <p align="center">Plotted On-Screen Trace Data of a Frequency Sweep from 1 GHz to 3 GHz</p>
-
-
-A runnable version of this example is `examples/plotting_scan.py`.  This example plots the last/current sweep of data from the NanoVNA device. `get_scan_s11()` (a `scan()` alias for outmask 2) gets the S11 trace data, and `convert_s11_data_to_arrays(...)` parses the returned real/imaginary pairs into arrays that are then plotted using `matplotlib`.
-
-This example has 4 subplots because there is a lot of information returned with each sweep of the NanoVNA. The top, left plot shows the real and imaginary parts of the signal. This is the data as it is returned directly from the NanoVNA device. The top, right plot shows the calculated magnitude data. The bottom plots are the calculated phase response and Smith Chart, on the left and right, respectively.
 
 
 #### **Example 2: Plot a Static Waterfall using SCAN and Calculated Frequencies**
@@ -752,41 +739,23 @@ This example has 4 subplots because there is a lot of information returned with 
 </p>
    <p align="center">Waterfall Plot for SCAN Data Over 20 Readings</p>
 
-This example uses the `scan()` read to collect data over a specified number of reads and then displays it as magnitude/phase waterfalls plus the latest single scan. Data is exported to a specified .csv for logging. The collection can be interrupted at any time in the terminal (typically Ctrl + C).
-
 A runnable version of this example is `examples/plotting_waterfall_static.py`.
 
+This example uses the `scan()` read to collect data over a specified number of reads and then displays it as magnitude/phase waterfalls plus the latest single scan. Data is exported to a specified .csv for logging. The collection can be interrupted at any time in the terminal (typically Ctrl + C).
 
-####
+#### **Example 3: Plot a Realtime Waterfall using SCAN and Calculated Frequencies**
 
-The plotting examples scan S11 (or S21) over a band and plot magnitude (dB), phase, and a complex-plane (Smith-style) scatter, or build a waterfall over repeated scans. They require the `[plotting]` extra. See `examples/plotting_scan.py`, `examples/plotting_waterfall_static.py`, and `examples/plotting_waterfall_realtime.py`.
+<p align="center">
+        <img src="media/example_realtime_waterfall.png" alt="Waterfall Plot for SCAN Data in Realtime" height="350">
+</p>
+   <p align="center">Waterfall Plot for SCAN Data in Realtime</p>
 
-A note on speed for the realtime waterfall: the update rate is bounded by how fast the device can produce a sweep, not by the example code. A 150-point S11 sweep takes on the order of 1–2 seconds on the F V2 (a VNA makes a complex magnitude-and-phase measurement at every point), so the plot updates every couple of seconds. Lower `--points` for a faster refresh at the cost of frequency resolution.
+The full, runnable version of this example is at `examples/plotting_waterfall_realtime.py` . This is a longer example due to the acquisition thread and animation loop, but the nanoVNA interfacing follows the other examples.
 
-```python
-import numpy as np
-from nvnapython import nanoVNA
+This example uses the `scan()` read to get data directly from the NanoVNA device. A background thread acquires scans while `matplotlib` animates the latest trace plus a rolling history across the four plots. The scan can be interrupted at any time by closing the figure window.
 
-nvna = nanoVNA()
-nvna.autoconnect()
-nvna.pause()
-raw = nvna.get_scan_s11(int(1e9), int(3e9), 200)   # outmask 2
-nvna.resume()
-nvna.disconnect()
+**A note on update speed:** the refresh rate is bounded by how fast the device can produce a sweep, not by the plotting code. A sweep of a couple hundred points takes on the order of 1–2 seconds on the NanoVNA-F V2/V3 (a VNA makes a complex magnitude-and-phase measurement at every point), so the waterfall advances every couple of seconds. Lower the point count for a faster refresh at the cost of frequency resolution.
 
-# parse real/imag pairs (keep genuine zero samples so the freq axis stays aligned)
-text = bytes(raw).decode("utf-8", errors="replace")
-reals, imags = [], []
-for line in text.replace("\r\n", "\n").split("\n"):
-    parts = line.split()
-    if len(parts) >= 2:
-        try:
-            reals.append(float(parts[0])); imags.append(float(parts[1]))
-        except ValueError:
-            continue
-mag = np.hypot(reals, imags)
-mag_db = 20 * np.log10(np.where(mag > 0, mag, 1e-12))
-```
 
 ### Saving SCAN Data to CSV
 
