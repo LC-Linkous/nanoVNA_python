@@ -167,7 +167,7 @@ def main():
     else:
         plt.show()
 
-    print(f"\nData summary:")
+    print("\nData summary:")
     print(f"  valid points: {len(real_arr)}")
     print(f"  freq range:   {freq[0]/1e9:.3f} - {freq[-1]/1e9:.3f} GHz")
     print(f"  |S11| range:  {mag_db.min():.2f} to {mag_db.max():.2f} dB")
