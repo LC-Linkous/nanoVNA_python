@@ -18,7 +18,6 @@ The read-loop tests pin the exact framing bugs the overhaul fixed:
 """
 
 import time
-import pytest
 
 from nvnapython import nanoVNA
 from tests.fakes import FakePort
@@ -236,7 +235,6 @@ def test_max_points_override_affects_scan_bound():
     dev.set_max_points(50)
     assert dev.get_max_points() == 50
     sent = {"n": 0}
-    orig = dev.nanoVNA_serial
 
     def _count(*a, **k):
         sent["n"] += 1

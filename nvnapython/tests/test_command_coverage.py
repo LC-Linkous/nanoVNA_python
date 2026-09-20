@@ -18,7 +18,6 @@ This test requires NO hardware -- it reads the source statically.
 
 import os
 import re
-import pytest
 
 
 # Authoritative command set, transcribed from the device 'help' dump captured
