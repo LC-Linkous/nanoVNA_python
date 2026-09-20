@@ -60,6 +60,7 @@ import statistics
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 for cand in (os.path.join(HERE, "src"), os.path.join(HERE, "..", "src"),
+             os.path.join(HERE, "..", "..", "src"),
              os.path.join(HERE, ".."), HERE):
     if os.path.isdir(os.path.join(cand, "nvnapython")):
         sys.path.insert(0, cand)

@@ -39,7 +39,7 @@ import argparse
 import datetime
 
 # make 'src' importable when run from the repo's nvnapython/ dir or tests/
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 from nvnapython import nanoVNA  # noqa: E402
 
 
@@ -135,7 +135,7 @@ def main():
     ts = datetime.datetime.now().isoformat(timespec="seconds")
     model = nvna.get_device_model()
     lines = []
-    lines.append(f"# NanoVNA README capture\n\n")
+    lines.append("# NanoVNA README capture\n\n")
     lines.append(f"Generated: {ts}  \n")
     lines.append(f"Library model preset: `{model}`  \n")
     lines.append("Captured verbatim via `command()` passthrough (raw device "
@@ -146,7 +146,7 @@ def main():
     for label, cmd, note, raw in records:
         lines.append(f"## `{cmd}`  ({note})\n\n")
         lines.append(f"* **sent:** `{cmd}`\n")
-        lines.append(f"* **raw return:**\n\n")
+        lines.append("* **raw return:**\n\n")
         lines.append(f"  ```\n  {trunc(raw)}\n  ```\n\n")
 
     # pull the help usage table out into its own clearly labeled block, since

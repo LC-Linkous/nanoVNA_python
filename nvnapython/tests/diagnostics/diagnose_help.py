@@ -36,6 +36,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 for cand in (
     os.path.join(HERE, "src"),
     os.path.join(HERE, "..", "src"),
+    os.path.join(HERE, "..", "..", "src"),
     os.path.join(HERE, ".."),
     HERE,
 ):
