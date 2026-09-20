@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Work on the current development branch. Entries move to a versioned section on
 release.
 
+## [2.0.1] - 2026-09-20
+
+Tooling, metadata, and repository-hygiene release. No API or behavior
+changes: the library's 295-test suite now runs in CI for the first time,
+and the repository gains the quality gates and health files below.
+
 ### Added
 - Continuous integration: a Tests workflow running the hardware-free suite
   (295 tests) across Windows, Linux, and macOS on Python 3.10–3.13, plus
@@ -42,5 +48,6 @@ release.
 See the [GitHub releases](https://github.com/LC-Linkous/nanoVNA_python/releases)
 for prior history.
 
-[Unreleased]: https://github.com/LC-Linkous/nanoVNA_python/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/LC-Linkous/nanoVNA_python/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/LC-Linkous/nanoVNA_python/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/LC-Linkous/nanoVNA_python/releases/tag/v2.0.0
