@@ -322,7 +322,6 @@ class nanoVNA(
         # whatever bytes happened to arrive within the settle window -- it is NOT a
         # reliable success signal. To confirm a save persisted, power-cycle and
         # 'recall' the slot.
-        import time
         self.ser.reset_input_buffer()
         self.ser.reset_output_buffer()
         self.ser.write(bytes(writebyte, 'utf-8'))
@@ -375,7 +374,6 @@ class nanoVNA(
         # buffer reading lineage:
         #   https://groups.io/g/nanovna-users (screen capture / serial read threads)
 
-        import time
         prompt = b'ch>'
         buffer = bytes()
         deadline = time.time() + self.serialTimeout
@@ -439,7 +437,6 @@ class nanoVNA(
         # instead of waiting the full cap), or (c) a generous absolute timeout
         # (a stalled/dead transfer mid-stream). Returns exactly expected_bytes on
         # success, or a SHORT bytearray (with a warning) otherwise.
-        import time
         if timeout_s is None:
             # generous absolute cap that scales with the configured serial
             # timeout. At the default serialTimeout (5s) this is ~30s; the real
