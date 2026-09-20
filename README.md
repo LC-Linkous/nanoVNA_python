@@ -1,6 +1,7 @@
 # nanoVNA_python
 
 [![PyPI version](https://badge.fury.io/py/nvnapython.svg)](https://badge.fury.io/py/nvnapython)
+[![Tests](https://github.com/LC-Linkous/nanoVNA_python/actions/workflows/tests.yml/badge.svg)](https://github.com/LC-Linkous/nanoVNA_python/actions/workflows/tests.yml)
 [![Python versions](https://img.shields.io/pypi/pyversions/nvnapython.svg)](https://pypi.org/project/nvnapython/)
 [![PyPI - Wheel](https://img.shields.io/pypi/wheel/nvnapython.svg)](https://pypi.org/project/nvnapython/)
 [![Downloads](https://static.pepy.tech/badge/nvnapython)](https://pepy.tech/project/nvnapython)
